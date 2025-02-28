@@ -1,6 +1,8 @@
 import { getAccountWithTransactions } from '@/actions/accounts'
 import { notFound } from 'next/navigation'
-import React from 'react'
+import React, { Suspense } from 'react'
+import {TransactionTable} from '../_components/transaction-table'
+import { BeatLoader } from 'react-spinners'
 
 const AccountsPage = async ({ params}) => {
 
@@ -35,7 +37,9 @@ const AccountsPage = async ({ params}) => {
           </p>
         </div>
       </div>
-   
+      <Suspense fallback={<BeatLoader className='mt-4' width={"100%"} color="#9333ea"/>}>
+        <TransactionTable transactions={transations} />
+    </Suspense>
     </div>
   )
 }
