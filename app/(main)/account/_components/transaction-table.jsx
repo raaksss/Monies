@@ -57,9 +57,20 @@ export function TransactionTable ({transactions}) {
                 }}
                 className='px-2 py-1 rounded text-white-sm'
                 >
-                {transaction.category}
+                 {transaction.category}
                 </span>
                 </TableCell>
+                <TableCell
+                    className={(
+                      "text-right font-medium",
+                      transaction.type === "EXPENSE"
+                        ? "text-red-500"
+                        : "text-green-500"
+                    )}
+                  >
+                    {transaction.type === "EXPENSE" ? "-" : "+"}$
+                    {transaction.amount.toFixed(2)}
+                  </TableCell>
           </TableRow>
         ))
     )}
