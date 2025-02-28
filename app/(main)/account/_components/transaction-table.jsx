@@ -2,6 +2,8 @@
 
 import { Checkbox } from '@/components/ui/checkbox'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { categoryColors } from '@/data/categories';
+import { format } from 'date-fns';
 import React from 'react'
 
 export function TransactionTable ({transactions}) {
@@ -12,7 +14,6 @@ export function TransactionTable ({transactions}) {
   return (
     <div className='space-y-4'>
         <div className='rounded-md border'>
-
     <Table>
   <TableHeader>
     <TableRow>
@@ -43,15 +44,25 @@ export function TransactionTable ({transactions}) {
                 No Transactions Found
             </TableCell>
         </TableRow>
-    ):(
-        <TableRow>
-      <TableCell className="font-medium">INV001</TableCell>
-      <TableCell>Paid</TableCell>
-      <TableCell>Credit Card</TableCell>
-      <TableCell className="text-right">$250.00</TableCell>
-    </TableRow>
+    ):(filteredAndSortedTransactions.map((transaction)=>(
+            <TableRow key={transaction.id}>
+            <TableCell>
+                <Checkbox />
+            </TableCell>
+            <TableCell>{format(new Date(transaction.date),"PP")}</TableCell>
+            <TableCell>{transaction.description}</TableCell>
+            <TableCell className='capitalize'>
+                <span style={{
+                    background:categoryColors[transaction.category]
+                }}
+                className='px-2 py-1 rounded text-white-sm'
+                >
+                {transaction.category}
+                </span>
+                </TableCell>
+          </TableRow>
+        ))
     )}
-    
   </TableBody>
 </Table>
 
@@ -60,3 +71,4 @@ export function TransactionTable ({transactions}) {
   )
 }
 
+export default TransactionTable;
