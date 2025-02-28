@@ -13,7 +13,7 @@ const AccountsPage = async ({ params}) => {
         notFound();
     }
 
-    const{transations, ...account}= accountData;
+    const{transactions, ...account}= accountData;
 
   return (
      <div className="space-y-8 px-5">
@@ -38,7 +38,7 @@ const AccountsPage = async ({ params}) => {
         </div>
       </div>
       <Suspense fallback={<BeatLoader className='mt-4' width={"100%"} color="#9333ea"/>}>
-        <TransactionTable transactions={transations} />
+        <TransactionTable transactions={transactions} />
     </Suspense>
     </div>
   )
