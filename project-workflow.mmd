@@ -1,0 +1,42 @@
+flowchart TD
+    %% Project Initialization
+    Start([Project Start]) --> Planning[Project Planning Phase]
+    Planning --> Requirements[Requirements Gathering]
+    
+    %% Development Setup
+    Requirements --> DevSetup[Development Environment Setup]
+    DevSetup --> VersionControl[Version Control Setup]
+    
+    %% Development Cycle
+    VersionControl --> DevCycle[Development Cycle]
+    
+    %% Development Branch
+    DevCycle --> Feature[Feature Development]
+    Feature --> Testing[Unit Testing]
+    Testing --> CodeReview[Code Review]
+    
+    %% Review Process
+    CodeReview -->|Approved| Integration[Integration]
+    CodeReview -->|Needs Changes| Feature
+    
+    %% Testing Branch
+    Integration --> QA[Quality Assurance]
+    QA -->|Pass| Staging[Staging Environment]
+    QA -->|Fail| Feature
+    
+    %% Deployment
+    Staging --> ProdDeploy[Production Deployment]
+    
+    %% Maintenance
+    ProdDeploy --> Monitoring[Monitoring & Maintenance]
+    Monitoring -->|Issues Found| Feature
+    Monitoring -->|Stable| Documentation[Documentation Update]
+    
+    %% Project Completion
+    Documentation --> End([Project Complete])
+    
+    %% Styling
+    classDef phase fill:#f9f,stroke:#333,stroke-width:2px
+    classDef process fill:#bbf,stroke:#333,stroke-width:2px
+    class Planning,Requirements phase
+    class DevSetup,Feature,Testing,Integration,QA,ProdDeploy process 
