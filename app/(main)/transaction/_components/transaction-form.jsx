@@ -83,6 +83,9 @@ export function AddTransactionForm({
     data: transactionResult,
   } = useFetch(editMode ? updateTransaction : createTransaction);
 
+  const [isImporting, setIsImporting] = useState(false);
+  const [importedTransactions, setImportedTransactions] = useState([]);
+
   const onSubmit = (data) => {
     const formData = {
       ...data,
@@ -96,9 +99,9 @@ export function AddTransactionForm({
     }
   };
 
-
   const handleScanComplete = (scannedData) => {
     if (scannedData) {
+      setIsImporting(false);
       console.log(scannedData);
       setValue("amount", scannedData.amount.toString());
       setValue("date", new Date(scannedData.date));
@@ -114,6 +117,8 @@ export function AddTransactionForm({
   //edit krna hai because we are receiving array of transactions and not a single transaction
   const handleStatementImport = (importedStatement) => {
     if (importedStatement) {
+      setIsImporting(true);
+      setImportedTransactions(importedStatement)
       setValue("amount", importedStatement[0].amount.toString());
       setValue("date", new Date(importedStatement[0].date));
 
@@ -132,6 +137,17 @@ export function AddTransactionForm({
       toast.success("Transactions imported successfully");
     }
   };
+  const handleCancelImport = () => {
+    setIsImporting(false);
+    setImportedTransactions([]);
+    toast.success("Import canceled.");
+  };
+  const handleBulkAddTransactions = () => {
+    // You can implement the logic to add all transactions in bulk here
+    toast.success("All transactions have been added successfully.");
+    // Reset or redirect after bulk add
+  };
+
 
   useEffect(() => {
     if (transactionResult?.success && !transactionLoading) {
@@ -150,16 +166,87 @@ export function AddTransactionForm({
   const date = watch("date");
 
   return (
-
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Receipt Scanner - Only show in create mode */}
-
+      <div>
+      {isImporting ? (
+            <>
+      <form className="space-y-6">
       <div className="flex items-stretch gap-4">
       {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} /> }
       {!editMode && <StatementScanner onStatementImport={handleStatementImport} />}
       </div>
-      {/* Type */}
-      <div className="space-y-2">
+      <div>
+          <h3 className="text-lg font-semibold">Imported Transactions</h3>
+          <div className="space-y-4">
+            {importedTransactions.map((transaction, index) => (
+              <div key={index} className="border p-4 rounded-md">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-medium">Amount: ₹{transaction.amount}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Date: {format(new Date(transaction.date), "PPP")}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Set the form values to this transaction's values
+                      setValue("amount", transaction.amount.toString());
+                      setValue("description", transaction.description);
+                      setValue("category", transaction.category);
+                      setValue("date", new Date(transaction.date));
+                    }}
+                  >
+                    Edit
+                  </Button>
+                </div>
+                <div className="mt-2">
+                  <label className="text-sm font-medium">Category</label>
+                  <Select
+                    value={transaction.category}
+                    onValueChange={(value) => {
+                      const updatedTransactions = [...importedTransactions];
+                      updatedTransactions[index].category = value;
+                      setImportedTransactions(updatedTransactions);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {defaultCategories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Buttons to handle bulk actions */}
+          <div className="flex space-x-4">
+            <Button variant="outline" onClick={handleCancelImport}>
+              Cancel
+            </Button>
+            <Button onClick={handleBulkAddTransactions}>
+              Add All Transactions
+            </Button>
+          </div>
+        </div>
+      </form>
+            </>
+          ) : (
+            <>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <div className="flex items-stretch gap-4">
+      {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} /> }
+      {!editMode && <StatementScanner onStatementImport={handleStatementImport} />}
+      </div>
+       {/* Type */}
+       <div className="space-y-2">
         <label className="text-sm font-medium">Type</label>
         <Select
           onValueChange={(value) => setValue("type", value)}
@@ -355,5 +442,8 @@ export function AddTransactionForm({
         </Button>
       </div>
     </form>
+            </>
+          )}
+          </div>
   );
 }
