@@ -304,18 +304,28 @@ export async function importStatement(file){
       Each transaction should have:
       - type (Income/Expense)
       - amount (Number)
-      - category (One of: salary, freelance, investments, business, rental, other-income, housing, transportation, groceries, utilities, entertainment, food, shopping, healthcare, education, personal, travel, insurance, gift, bills, other-expense)
-      {The category should be chosen smartly. If the particulars is of the form "UPIAR/503329960029/DR/Almighty/YESB/paytmqr2810050" use all the intelligence to judge what category it might fall into. 
-    For eg:
-  1.Pattern Matching
-	•	Identify keywords in transaction descriptions (e.g., "paytmqr" → Merchant, "amazon" → Shopping, "dominos" → Food).
-	2.	Regular Expressions
-	•	Extract merchant names from UPI transaction strings and match them to known brands.
-	3.	ML-Based Categorization
-	•	Train a model using historical transactions labeled with categories (Food, Shopping, Travel, etc.).
-	•	Use NLP to detect patterns in transaction descriptions.
-	•	Match against a database of merchant names & MCC codes for precise classification.}
+      - category (STRICTLY One of: salary, freelance, investments, business, rental, other-income, housing, transportation, groceries, utilities, entertainment, food, shopping, healthcare, education, personal, travel, insurance, gift, bills, other-expense)
+      (If there is merchant category given already, that will be considered as superior in judging the category.)
+      {The category should be chosen smartly:
+      	2.	Pattern Matching for Keywords in Descriptions
+	        •	"paytmqr" → Merchant Payment (likely shopping, groceries, food, or services)
+	        •	"amazon","flipkart","myntra" → Shopping
+	        •	"dominos", "burgerking" → Food & Dining
+	        •	"noidametro", "uber" → Transportation
+	        •	"bookmyshow", "spotify" → Entertainment
+	        •	"hdfc/travel", "hotel","makemytrip" → Travel
+	        •	"electricity", "gasbill" → Utilities
+          •	"Spar","hypermarket","Almightly","spencers","departmental store","blinkit","bigbazaar" → Groceries
 
+	      3.	Regular Expressions for Merchant Name Extraction
+	        •	Identify merchants/business names within transaction details and map them to known business types.
+	      4.	Smart Categorization for UPI Transactions
+	        •	"UPIAR/XXXX/DR/MerchantName/Bank/paytmqrXXXX"
+	        •	If the transaction involves an individual (e.g., random name + UPI), classify as "personal" or "peer transfer".
+	        •	If its a known brand or QR code merchant, classify using the merchant type (food, shopping, utilities, etc.).
+	      5.	Fallback Rule
+	        •	If no clear classification is found, assign "other-expense" for debits and "other-income" for credits.    
+      }
       - date (YYYY-MM-DD)
       - description (String) (Don't include particulars as description)
       - isRecurring (Boolean, default: false)
@@ -371,8 +381,8 @@ export async function importStatement(file){
         category: txn.category,
         date: new Date(txn.date),
         description: txn.description,
-        isRecurring: txn.isRecurring || false, // Default false
-        recurringInterval: txn.isRecurring ? txn.recurringInterval : null, // Only set if true
+        isRecurring: txn.isRecurring || false,
+        recurringInterval: txn.isRecurring ? txn.recurringInterval : null, 
       }));
     } catch (parseError) {
       console.error("Error parsing JSON response:", parseError);
