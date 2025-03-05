@@ -27,9 +27,11 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { CreateAccountDrawer } from "@/components/create-account-drawer";
 import { cn } from "@/lib/utils";
-import { createTransaction, updateTransaction } from "@/actions/transaction";
+import { createTransaction, importStatementTransactions, updateTransaction } from "@/actions/transaction";
 import { transactionSchema } from "@/app/lib/schema";
 import { ReceiptScanner } from "./recipt-scanner";
+import { useState } from "react";
+import { defaultCategories } from "@/data/categories";
 
 export function AddTransactionForm({
   accounts,
@@ -40,6 +42,7 @@ export function AddTransactionForm({
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
+
 
   const {
     register,
@@ -75,6 +78,7 @@ export function AddTransactionForm({
           },
   });
 
+
   const {
     loading: transactionLoading,
     fn: transactionFn,
@@ -94,6 +98,7 @@ export function AddTransactionForm({
     }
   };
 
+
   const handleScanComplete = (scannedData) => {
     if (scannedData) {
       setValue("amount", scannedData.amount.toString());
@@ -105,6 +110,27 @@ export function AddTransactionForm({
         setValue("category", scannedData.category);
       }
       toast.success("Receipt scanned successfully");
+    }
+  };
+  const handleStatementImport = (importedStatement) => {
+    
+    if (importedStatement) {
+      setValue("amount", importedStatement[0].amount.toString());
+      setValue("date", new Date(importedStatement[0].date));
+      if (importedStatement[0].description) {
+        setValue("description", importedStatement[0].description);
+      }
+      if (importedStatement[0].category) {
+        const categoryObj = filteredCategories.find(cat => cat.name === importedStatement[0].category);
+        console.log("Categoryobj:",categoryObj)
+        console.log("Categoryobj name:",categoryObj.name)
+        console.log("Categoryobj id:",categoryObj.id)
+        setValue("category", categoryObj ? categoryObj.name : "");
+      }
+      if(importedStatement[0].type){
+        setValue("type", importedStatement[0].type)
+      }
+      toast.success("Transactions imported successfully");
     }
   };
 
@@ -128,11 +154,14 @@ export function AddTransactionForm({
     (category) => category.type === type
   );
 
+//edit krna hai because we are receiving array of transactions and not a single transaction
+ 
+
   return (
+
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Receipt Scanner - Only show in create mode */}
-      {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} />}
-
+      {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} onStatementImport={handleStatementImport}  /> }
       {/* Type */}
       <div className="space-y-2">
         <label className="text-sm font-medium">Type</label>

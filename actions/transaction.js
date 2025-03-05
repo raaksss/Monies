@@ -290,7 +290,7 @@ export async function scanReceipt(file) {
   }
 }
 
-export async function importStatement(file){
+export async function importStatementTransactions(file){
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
@@ -304,7 +304,7 @@ export async function importStatement(file){
       Each transaction should have:
       - type (Income/Expense)
       - amount (Number)
-      - category (STRICTLY One of: salary, freelance, investments, business, rental, other-income, housing, transportation, groceries, utilities, entertainment, food, shopping, healthcare, education, personal, travel, insurance, gift, bills, other-expense)
+      - category (STRICTLY One of: Salary, Freelance, Investments, Business, Rental, Other-income, Housing, Transportation, Groceries, Utilities, Entertainment, Food, Shopping, Healthcare, Education, Personal, Travel, Insurance, Gift, Bills, Other-expense)
       (If there is merchant category given already, that will be considered as superior in judging the category.)
       {The category should be chosen smartly:
       	2.	Pattern Matching for Keywords in Descriptions

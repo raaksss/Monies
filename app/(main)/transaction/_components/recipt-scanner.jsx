@@ -5,7 +5,7 @@ import { Camera, Loader2, ReceiptIndianRupee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import useFetch from "@/hooks/use-fetch";
-import { importStatement, scanReceipt } from "@/actions/transaction";
+import { importStatementTransactions,scanReceipt } from "@/actions/transaction";
 
 export function ReceiptScanner({ onScanComplete, onStatementImport }) {
   const fileInputRef = useRef(null);
@@ -21,7 +21,7 @@ export function ReceiptScanner({ onScanComplete, onStatementImport }) {
     loading: importStatementLoading,
     fn: importStatementFn,
     data: importedStatement,
-  } = useFetch(importStatement);
+  } = useFetch(importStatementTransactions);
 
 
   const handleFileUpload = async (file,type) => {
@@ -41,7 +41,7 @@ if (type === "receipt") {
   useEffect(() => {
     if (importedStatement && !importStatementLoading) {
       console.log("Imported Transactions:", importedStatement);
-      //onStatementImport(importedStatement);
+      onStatementImport(importedStatement);
       toast.success("Bank statement imported successfully!");
     }
   }, [importStatementLoading, importedStatement]);
@@ -53,6 +53,7 @@ if (type === "receipt") {
       toast.success("Receipt scanned successfully");
     }
   }, [scanReceiptLoading, scannedData]);
+
 
   return (
     <div className="flex items-center gap-4">
