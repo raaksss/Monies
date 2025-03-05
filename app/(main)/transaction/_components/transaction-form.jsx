@@ -41,8 +41,6 @@ export function AddTransactionForm({
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
-
-
   const {
     register,
     handleSubmit,
@@ -77,6 +75,7 @@ export function AddTransactionForm({
           },
   });
 
+  const categoryValue = watch("category");
 
   const {
     loading: transactionLoading,
@@ -112,22 +111,24 @@ export function AddTransactionForm({
       toast.success("Receipt scanned successfully");
     }
   };
+  //edit krna hai because we are receiving array of transactions and not a single transaction
   const handleStatementImport = (importedStatement) => {
-    
     if (importedStatement) {
       setValue("amount", importedStatement[0].amount.toString());
       setValue("date", new Date(importedStatement[0].date));
+
       if (importedStatement[0].description) {
         setValue("description", importedStatement[0].description);
       }
       if (importedStatement[0].category) {
-        const categoryObj = filteredCategories.find(cat => cat.name === importedStatement[0].category);
-      
-        setValue("category", categoryObj ? categoryObj.name : "");
+        const categoryObj = defaultCategories.find(cat => cat.name === importedStatement[0].category);
+        setValue("category", categoryObj ? categoryObj.id : ""); 
       }
-      if(importedStatement[0].type){
-        setValue("type", importedStatement[0].type)
+
+      if (importedStatement[0].type) {
+        setValue("type", importedStatement[0].type);
       }
+
       toast.success("Transactions imported successfully");
     }
   };
@@ -151,9 +152,6 @@ export function AddTransactionForm({
   const filteredCategories = categories.filter(
     (category) => category.type === type
   );
-
-//edit krna hai because we are receiving array of transactions and not a single transaction
- 
 
   return (
 
@@ -229,19 +227,21 @@ export function AddTransactionForm({
       {/* Category */}
       <div className="space-y-2">
         <label className="text-sm font-medium">Category</label>
+       
         <Select
           onValueChange={(value) => setValue("category", value)}
-          defaultValue={getValues("category")}
+          value={watch("category")}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select category" />
           </SelectTrigger>
           <SelectContent>
-            {filteredCategories.map((category) => (
+            {defaultCategories.map((category) => (
               <SelectItem key={category.id} value={category.id}>
                 {category.name}
               </SelectItem>
             ))}
+            
           </SelectContent>
         </Select>
         {errors.category && (
