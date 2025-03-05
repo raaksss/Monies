@@ -300,18 +300,12 @@ export async function importStatement(file){
     const base64String = Buffer.from(arrayBuffer).toString("base64");
 
     const prompt = `
-      Analyze this bank statement file and extract transactions in JSON format. 
+      Analyze this bank statement file and extract all the transactions in JSON format. 
       Each transaction should have:
       - type (Income/Expense)
       - amount (Number)
       - category (One of: salary, freelance, investments, business, rental, other-income, housing, transportation, groceries, utilities, entertainment, food, shopping, healthcare, education, personal, travel, insurance, gift, bills, other-expense)
-      - date (YYYY-MM-DD)
-      - description (String) (Don't include particulars as description)
-      - isRecurring (Boolean, default: false)
-      - recurringInterval (One of: daily, weekly, bi-weekly, monthly, quarterly, yearly, or null. Only set if isRecurring is true)
-      - nextRecurringDate (YYYY-MM-DD or null. Only set if isRecurring is true)
-
-    The category should be chosen smartly. If the particulars is of the form "UPIAR/503329960029/DR/Almighty/YESB/paytmqr2810050" use all the intelligence to judge what category it might fall into. 
+      {The category should be chosen smartly. If the particulars is of the form "UPIAR/503329960029/DR/Almighty/YESB/paytmqr2810050" use all the intelligence to judge what category it might fall into. 
     For eg:
   1.Pattern Matching
 	•	Identify keywords in transaction descriptions (e.g., "paytmqr" → Merchant, "amazon" → Shopping, "dominos" → Food).
@@ -320,7 +314,13 @@ export async function importStatement(file){
 	3.	ML-Based Categorization
 	•	Train a model using historical transactions labeled with categories (Food, Shopping, Travel, etc.).
 	•	Use NLP to detect patterns in transaction descriptions.
-	•	Match against a database of merchant names & MCC codes for precise classification.
+	•	Match against a database of merchant names & MCC codes for precise classification.}
+
+      - date (YYYY-MM-DD)
+      - description (String) (Don't include particulars as description)
+      - isRecurring (Boolean, default: false)
+      - recurringInterval (One of: daily, weekly, bi-weekly, monthly, quarterly, yearly, or null. Only set if isRecurring is true)
+      - nextRecurringDate (YYYY-MM-DD or null. Only set if isRecurring is true)
 
       Only respond with valid JSON in this exact format:
       [
