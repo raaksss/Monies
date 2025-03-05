@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarIcon, Loader2 } from "lucide-react";
@@ -31,6 +31,7 @@ import { createTransaction, importStatementTransactions, updateTransaction } fro
 import { transactionSchema } from "@/app/lib/schema";
 import { ReceiptScanner } from "./recipt-scanner";
 import { defaultCategories } from "@/data/categories";
+import { StatementScanner } from "./statement-scanner";
 
 export function AddTransactionForm({
   accounts,
@@ -75,7 +76,6 @@ export function AddTransactionForm({
           },
   });
 
-  const categoryValue = watch("category");
 
   const {
     loading: transactionLoading,
@@ -149,15 +149,15 @@ export function AddTransactionForm({
   const isRecurring = watch("isRecurring");
   const date = watch("date");
 
-  const filteredCategories = categories.filter(
-    (category) => category.type === type
-  );
-
   return (
 
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Receipt Scanner - Only show in create mode */}
-      {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} onStatementImport={handleStatementImport}  /> }
+
+      <div className="flex items-stretch gap-4">
+      {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} /> }
+      {!editMode && <StatementScanner onStatementImport={handleStatementImport} />}
+      </div>
       {/* Type */}
       <div className="space-y-2">
         <label className="text-sm font-medium">Type</label>
