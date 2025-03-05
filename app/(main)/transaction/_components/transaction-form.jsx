@@ -30,7 +30,6 @@ import { cn } from "@/lib/utils";
 import { createTransaction, importStatementTransactions, updateTransaction } from "@/actions/transaction";
 import { transactionSchema } from "@/app/lib/schema";
 import { ReceiptScanner } from "./recipt-scanner";
-import { useState } from "react";
 import { defaultCategories } from "@/data/categories";
 
 export function AddTransactionForm({
@@ -101,6 +100,7 @@ export function AddTransactionForm({
 
   const handleScanComplete = (scannedData) => {
     if (scannedData) {
+      console.log(scannedData);
       setValue("amount", scannedData.amount.toString());
       setValue("date", new Date(scannedData.date));
       if (scannedData.description) {
@@ -122,9 +122,7 @@ export function AddTransactionForm({
       }
       if (importedStatement[0].category) {
         const categoryObj = filteredCategories.find(cat => cat.name === importedStatement[0].category);
-        console.log("Categoryobj:",categoryObj)
-        console.log("Categoryobj name:",categoryObj.name)
-        console.log("Categoryobj id:",categoryObj.id)
+      
         setValue("category", categoryObj ? categoryObj.name : "");
       }
       if(importedStatement[0].type){
