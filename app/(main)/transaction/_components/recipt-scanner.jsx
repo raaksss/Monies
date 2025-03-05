@@ -5,10 +5,11 @@ import { Camera, Loader2, ReceiptIndianRupee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import useFetch from "@/hooks/use-fetch";
-import { scanReceipt } from "@/actions/transaction";
+import { importStatement, scanReceipt } from "@/actions/transaction";
 
-export function ReceiptScanner({ onScanComplete }) {
+export function ReceiptScanner({ onScanComplete, onStatementImport }) {
   const fileInputRef = useRef(null);
+  const statementInputRef = useRef(null);
 
   const {
     loading: scanReceiptLoading,
@@ -16,14 +17,35 @@ export function ReceiptScanner({ onScanComplete }) {
     data: scannedData,
   } = useFetch(scanReceipt);
 
-  const handleReceiptScan = async (file) => {
+  const {
+    loading: importStatementLoading,
+    fn: importStatementFn,
+    data: importedStatement,
+  } = useFetch(importStatement);
+
+
+  const handleFileUpload = async (file,type) => {
+    if (!file) return;
+
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File size should be less than 5MB");
       return;
     }
-
-    await scanReceiptFn(file);
+if (type === "receipt") {
+      await scanReceiptFn(file);
+    } else if (type === "statement") {
+      await importStatementFn(file);
+    }
   };
+
+  useEffect(() => {
+    if (importedStatement && !importStatementLoading) {
+      console.log("Imported Transactions:", importedStatement);
+      //onStatementImport(importedStatement);
+      toast.success("Bank statement imported successfully!");
+    }
+  }, [importStatementLoading, importedStatement]);
+
 
   useEffect(() => {
     if (scannedData && !scanReceiptLoading) {
@@ -34,6 +56,7 @@ export function ReceiptScanner({ onScanComplete }) {
 
   return (
     <div className="flex items-center gap-4">
+      {/*Receipt Scanner */}
       <input
         type="file"
         ref={fileInputRef}
@@ -42,7 +65,7 @@ export function ReceiptScanner({ onScanComplete }) {
         capture="environment"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) handleReceiptScan(file);
+          if (file) handleFileUpload(file, "receipt");
         }}
       />
       <Button
@@ -64,32 +87,33 @@ export function ReceiptScanner({ onScanComplete }) {
           </>
         )}
       </Button>
-      <input
+     
+     {/* Bank Statement Import */}
+     <input
         type="file"
-        ref={fileInputRef}
+        ref={statementInputRef}
         className="hidden"
-        accept="image/*"
-        capture="environment"
+        accept=".pdf,.csv,.xls,.xlsx"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) handleReceiptScan(file);
+          if (file) handleFileUpload(file, "statement"); 
         }}
       />
       <Button
         type="button"
         variant="outline"
         className="w-full h-10 bg-gradient-to-br from-orange-500 via-pink-500 to-purple-500 animate-gradient hover:opacity-90 transition-opacity text-white hover:text-white"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={scanReceiptLoading}
+        onClick={() => statementInputRef.current?.click()}
+        disabled={importStatementLoading}
       >
-        {scanReceiptLoading ? (
+        {importStatementLoading ? (
           <>
             <Loader2 className="mr-2 animate-spin" />
-            <span>Scanning Receipt...</span>
+            <span>Importing Statement...</span>
           </>
         ) : (
           <>
-            <ReceiptIndianRupee className='mr-2' />
+            <ReceiptIndianRupee className="mr-2" />
             <span>Import Monthly Statement</span>
           </>
         )}
