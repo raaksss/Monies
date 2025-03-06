@@ -200,7 +200,7 @@ export function AddTransactionForm({
          "Transactions created successfully"
       );
       reset();
-      router.push(`/account/${bulkTransactionResult.data.accountId}`);
+      router.push(`/account/${defaultAccountId}`);
     }
   }, [bulkTransactionResult, bulkTransactionLoading]);
 
