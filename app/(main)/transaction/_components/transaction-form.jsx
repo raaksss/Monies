@@ -115,7 +115,7 @@ export function AddTransactionForm({
       toast.success("Receipt scanned successfully");
     }
   };
-  //edit krna hai because we are receiving array of transactions and not a single transaction
+
   const handleStatementImport = (importedStatement) => {
     if (importedStatement.length > 0) {
       setIsImporting(true);
@@ -133,16 +133,12 @@ export function AddTransactionForm({
           const categoryObj = defaultCategories.find(
             cat => cat.name.toLowerCase() === transaction.category.toLowerCase()
           );
-          console.log(categoryObj)
-          console.log("Setting category:", categoryObj ? categoryObj.id : "other-expense");
           setValue(`transactions.${index}.category`, categoryObj ? categoryObj.id : "other-expense"); 
-          console.log("Updated Form Value:", getValues(`transactions.${index}.category`));
         }
   
         if (transaction.type) {
           const formattedType = transaction.type.toUpperCase() === "EXPENSE" ? "EXPENSE" : "INCOME";
           setValue(`transactions.${index}.type`, formattedType);
-          console.log("Updated Form Value:", getValues(`transactions.${index}.type`));
 
         }
 
@@ -150,7 +146,6 @@ export function AddTransactionForm({
       toast.success("Transactions imported successfully");
     }
   };
-  
 
 
   const handleCancelImport = () => {
@@ -192,138 +187,113 @@ export function AddTransactionForm({
     {!editMode && <StatementScanner onStatementImport={handleStatementImport} />}
   </div>
 
-  {/* Transactions Section */}
   <div>
-    <h3 className="text-lg font-semibold">Imported Transactions</h3>
-    <div className="space-y-4">
-      {importedTransactions.map((transaction, index) => (
-        <div key={index} className="border p-4 rounded-md space-y-4">
-          {/* Type (Income/Expense) */}
-          <div className="space-y-2">
-  <label className="text-sm font-medium">Type</label>
-  <Select
-  value={watch(`transactions.${index}.type`) || ""} 
-  onValueChange={(value) => {
-    setValue(`transactions.${index}.type`, value);
-    const updatedTransactions = [...importedTransactions];
-    updatedTransactions[index].type = value;
-    setImportedTransactions(updatedTransactions);
-  }}
->
-    <SelectTrigger>
-      <SelectValue placeholder="Select type" />
-    </SelectTrigger>
-    <SelectContent>
-            <SelectItem value="EXPENSE">Expense</SelectItem>
-            <SelectItem value="INCOME">Income</SelectItem>
-          </SelectContent>
-  </Select>
-  {errors?.transactions?.[index]?.type && (
-    <p className="text-red-500 text-sm">{errors.transactions[index].type.message}</p>
-  )}
-</div>
-
-          {/* Amount and Account */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Amount</label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={transaction.amount}
-                onChange={(e) => {
-                  const updatedTransactions = [...importedTransactions];
-                  updatedTransactions[index].amount = e.target.value;
-                  setImportedTransactions(updatedTransactions);
-                }}
-              />
-              {errors?.transactions?.[index]?.amount && (
-                <p className="text-red-500 text-sm">{errors.transactions[index].amount.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Account</label>
-              <Select
-                value={accounts.find((a) => a.isDefault)?.id || accounts[0]?.id}
-                onValueChange={(value) => {
-                  const updatedTransactions = [...importedTransactions];
-                  updatedTransactions[index].accountId = value;
-                  setImportedTransactions(updatedTransactions);
-                }}
-                defaultValue={getValues("accountId")}
-
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name} (₹{parseFloat(account.balance).toFixed(2)})
-                    </SelectItem>
-                  ))}
-                   <CreateAccountDrawer>
-                <Button
-                  variant="ghost"
-                  className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                >
-                  Create Account
-                </Button>
-              </CreateAccountDrawer>
-                </SelectContent>
-              </Select>
-              {errors?.transactions?.[index]?.accountId && (
-                <p className="text-red-500 text-sm">{errors.transactions[index].accountId.message}</p>
-              )}
-            </div>
+  <h3 className="text-lg font-semibold">Imported Transactions</h3>
+  <div className="grid gap-4">
+    {importedTransactions.map((transaction, index) => (
+      <div key={index} className="border p-3 rounded-md bg-white shadow-sm">
+        {/* Compact Header with Type, Amount & Date */}
+        <div className="flex justify-between items-center">
+          <div className="text-sm font-medium flex items-center gap-2">
+            <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
+              {watch(`transactions.${index}.type`) || "Type"}
+            </span>
+            <span className="text-gray-600">₹{transaction.amount}</span>
           </div>
+          <span className="text-xs text-gray-500">
+            {transaction.date ? format(new Date(transaction.date), "MMM d, yyyy") : "Pick Date"}
+          </span>
+        </div>
 
-          {/* Category */}
-          <div className="space-y-1">
-  <label className="text-sm font-medium">Category</label>
-  <Select
-    value={watch(`transactions.${index}.category`)} // Ensure it watches the form value
-    onValueChange={(value) => {
-      console.log(`Dropdown changed: ${value}`);
-      setValue(`transactions.${index}.category`, value); // Update form value
-      const updatedTransactions = [...importedTransactions];
-      updatedTransactions[index].category = value; // Update local state
-      setImportedTransactions(updatedTransactions);
-    }}
->
-    <SelectTrigger>
-      <SelectValue placeholder="Select category" />
-    </SelectTrigger>
-    <SelectContent>
-      {defaultCategories.map((category) => (
-        <SelectItem key={category.id} value={category.id}>
-          {category.name}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-  {errors?.transactions?.[index]?.category && (
-    <p className="text-red-500 text-sm">{errors.transactions[index].category.message}</p>
-  )}
-</div>
+        {/* Expandable Details */}
+        <details className="mt-2">
+          <summary className="cursor-pointer text-blue-500 text-sm">More Details</summary>
+          <div className="grid md:grid-cols-3 gap-2 mt-2">
+            {/* Type Selector */}
+            <Select
+              value={watch(`transactions.${index}.type`) || ""}
+              onValueChange={(value) => {
+                setValue(`transactions.${index}.type`, value);
+                const updatedTransactions = [...importedTransactions];
+                updatedTransactions[index].type = value;
+                setImportedTransactions(updatedTransactions);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="EXPENSE">Expense</SelectItem>
+                <SelectItem value="INCOME">Income</SelectItem>
+              </SelectContent>
+            </Select>
 
-{/* Auto-assign category from imported statement */}
-          {/* Date */}
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Date</label>
+            {/* Amount */}
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={transaction.amount}
+              onChange={(e) => {
+                const updatedTransactions = [...importedTransactions];
+                updatedTransactions[index].amount = e.target.value;
+                setImportedTransactions(updatedTransactions);
+              }}
+            />
+
+            {/* Category */}
+            <Select
+              value={watch(`transactions.${index}.category`)}
+              onValueChange={(value) => {
+                setValue(`transactions.${index}.category`, value);
+                const updatedTransactions = [...importedTransactions];
+                updatedTransactions[index].category = value;
+                setImportedTransactions(updatedTransactions);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {defaultCategories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Account */}
+            <Select
+              value={accounts.find((a) => a.isDefault)?.id || accounts[0]?.id}
+              onValueChange={(value) => {
+                const updatedTransactions = [...importedTransactions];
+                updatedTransactions[index].accountId = value;
+                setImportedTransactions(updatedTransactions);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Account" />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.map((account) => (
+                  <SelectItem key={account.id} value={account.id}>
+                    {account.name} (₹{parseFloat(account.balance).toFixed(2)})
+                  </SelectItem>
+                ))}
+                <CreateAccountDrawer>
+                  <Button variant="ghost" className="w-full text-left">
+                    + Create Account
+                  </Button>
+                </CreateAccountDrawer>
+              </SelectContent>
+            </Select>
+
+            {/* Date */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full pl-3 text-left font-normal",
-                    !transaction.date && "text-muted-foreground"
-                  )}
-                >
-                  {transaction.date ? format(new Date(transaction.date), "PPP") : <span>Pick a date</span>}
-                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                <Button variant="outline" className="w-full">
+                  {transaction.date ? format(new Date(transaction.date), "PPP") : "Pick a date"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -340,15 +310,8 @@ export function AddTransactionForm({
                 />
               </PopoverContent>
             </Popover>
-            {errors?.transactions?.[index]?.date && (
-              <p className="text-red-500 text-sm">{errors.transactions[index].date.message}</p>
-            )}
-          </div>
 
-
-          {/* Description */}
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Description</label>
+            {/* Description */}
             <Input
               type="text"
               value={transaction.description || ""}
@@ -357,16 +320,14 @@ export function AddTransactionForm({
                 updatedTransactions[index].description = e.target.value;
                 setImportedTransactions(updatedTransactions);
               }}
-              placeholder="Enter description"
+              placeholder="Description"
             />
-            {errors?.transactions?.[index]?.description && (
-              <p className="text-red-500 text-sm">{errors.transactions[index].description.message}</p>
-            )}
           </div>
-        </div>
-      ))}
-    </div>
+        </details>
+      </div>
+    ))}
   </div>
+</div>
   {/* Bulk Actions */}
   <div className="flex gap-4 space-x-4">
     <Button variant="outline" onClick={handleCancelImport} className="w-full">
