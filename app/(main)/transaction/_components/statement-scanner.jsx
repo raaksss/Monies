@@ -5,7 +5,7 @@ import { Camera, Loader2, ReceiptIndianRupee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import useFetch from "@/hooks/use-fetch";
-import { importStatementTransactions,scanReceipt } from "@/actions/transaction";
+import { importStatementTransactions} from "@/actions/transaction";
 
 export function StatementScanner({onStatementImport }) {
   const statementInputRef = useRef(null);

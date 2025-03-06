@@ -76,8 +76,6 @@ export function AddTransactionForm({
           },
   });
 
-
-
   const {
     loading: transactionLoading,
     fn: transactionFn,
@@ -99,7 +97,8 @@ export function AddTransactionForm({
       amount: parseFloat(data.amount),
     };
 
-    if (editMode) {
+    console.log(formData)
+   if (editMode) {
       transactionFn(editId, formData);
     } else {
       transactionFn(formData);
@@ -111,9 +110,10 @@ export function AddTransactionForm({
       const formattedTransactions = importedTransactions.map((t) => ({
         ...t,
         amount: parseFloat(t.amount),
+        accountId: t.accountId || defaultAccountId,
       }));
+      console.log(formattedTransactions)
       bulkTransactionFn(formattedTransactions);
-
 
   };
 
@@ -197,10 +197,13 @@ export function AddTransactionForm({
   const type = watch("type");
   const isRecurring = watch("isRecurring");
   const date = watch("date");
+
+  const defaultAccountId = accounts.find((ac) => ac.isDefault)?.id || accounts[0]?.id || "";
   return (
       <div>
       {isImporting ? (
             <>
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
   <div className="flex items-stretch gap-4">
     {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} />}
@@ -287,7 +290,9 @@ export function AddTransactionForm({
             {/* Account */}
             <Select
               value={accounts.find((a) => a.isDefault)?.id || accounts[0]?.id}
+              defaultValue={getValues("accountId")}
               onValueChange={(value) => {
+                setValue(`transactions.${index}.accountId`, value);
                 const updatedTransactions = [...importedTransactions];
                 updatedTransactions[index].accountId = value;
                 setImportedTransactions(updatedTransactions);
