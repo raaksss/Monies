@@ -27,7 +27,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { CreateAccountDrawer } from "@/components/create-account-drawer";
 import { cn } from "@/lib/utils";
-import { createTransaction, importStatementTransactions, updateTransaction } from "@/actions/transaction";
+import { createBulkTransactions, createTransaction, importStatementTransactions, updateTransaction } from "@/actions/transaction";
 import { transactionSchema } from "@/app/lib/schema";
 import { ReceiptScanner } from "./recipt-scanner";
 import { defaultCategories } from "@/data/categories";
@@ -84,6 +84,12 @@ export function AddTransactionForm({
     data: transactionResult,
   } = useFetch(editMode ? updateTransaction : createTransaction);
 
+  const {
+    loading: bulkTransactionLoading,
+    fn: bulkTransactionFn,
+    data: bulkTransactionResult,
+  } = useFetch(createBulkTransactions);
+
   const [isImporting, setIsImporting] = useState(false);
   const [importedTransactions, setImportedTransactions] = useState([]);
 
@@ -98,6 +104,19 @@ export function AddTransactionForm({
     } else {
       transactionFn(formData);
     }
+  };
+
+  const handleBulkAddTransactions = () => {
+    console.log(importedTransactions)
+    
+      {/*if (!importedTransactions.length) return;
+      const formattedTransactions = importedTransactions.map((t) => ({
+        ...t,
+        amount: parseFloat(t.amount),
+      }));
+      bulkTransactionFn(formattedTransactions);
+
+*/}
   };
 
   const handleScanComplete = (scannedData) => {
@@ -131,18 +150,29 @@ export function AddTransactionForm({
   
         if (transaction.category) {
           const categoryObj = defaultCategories.find(
-            cat => cat.name.toLowerCase() === transaction.category.toLowerCase()
+            (cat) => cat.name.toLowerCase() === transaction.category.toLowerCase()
           );
-          setValue(`transactions.${index}.category`, categoryObj ? categoryObj.id : "other-expense"); 
+  
+          // Instead of storing the name, always store the ID
+          setValue(
+            `transactions.${index}.category`,
+            categoryObj ? categoryObj.id : "other-expense"
+          );
+  
+          // Ensure the local state also has the correct ID
+          importedStatement[index].category = categoryObj ? categoryObj.id : "other-expense";
         }
   
         if (transaction.type) {
-          const formattedType = transaction.type.toUpperCase() === "EXPENSE" ? "EXPENSE" : "INCOME";
+          const formattedType =
+            transaction.type.toUpperCase() === "EXPENSE" ? "EXPENSE" : "INCOME";
           setValue(`transactions.${index}.type`, formattedType);
-
         }
-
       });
+  
+      // Update local state to reflect changes
+      setImportedTransactions([...importedStatement]);
+  
       toast.success("Transactions imported successfully");
     }
   };
@@ -153,11 +183,7 @@ export function AddTransactionForm({
     setImportedTransactions([]);
     toast.success("Import canceled.");
   };
-  const handleBulkAddTransactions = () => {
-    // You can implement the logic to add all transactions in bulk here
-    toast.success("All transactions have been added successfully.");
-    // Reset or redirect after bulk add
-  };
+  
 
   useEffect(() => {
     console.log("Current Form State:", watch(`transactions.type`));
@@ -334,9 +360,17 @@ export function AddTransactionForm({
     <Button variant="outline" onClick={handleCancelImport} className="w-full">
       Cancel
     </Button>
-    <Button className="w-full" onClick={handleBulkAddTransactions}>
-      Add All Transactions
-    </Button>
+
+    <Button type="button" className="w-full" disabled={bulkTransactionLoading} onClick={handleBulkAddTransactions}>
+  {bulkTransactionLoading ? (
+    <>
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      "Importing Transactions..."
+    </>
+  ) : (
+    "Add Bulk Transactions"
+  )}
+</Button>
   </div>
 </form>
             </>

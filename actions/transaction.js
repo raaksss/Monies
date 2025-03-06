@@ -99,6 +99,107 @@ export async function createTransaction(data) {
   }
 }
 
+export async function createBulkTransactions(transactions) {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    // Get request data for ArcJet
+    const req = await request();
+
+    // Check rate limit
+    const decision = await aj.protect(req, {
+      userId,
+      requested: transactions.length, // Consume tokens based on number of transactions
+    });
+
+    if (decision.isDenied()) {
+      if (decision.reason.isRateLimit()) {
+        const { remaining, reset } = decision.reason;
+        console.error({
+          code: "RATE_LIMIT_EXCEEDED",
+          details: {
+            remaining,
+            resetInSeconds: reset,
+          },
+        });
+
+        throw new Error("Too many requests. Please try again later.");
+      }
+
+      throw new Error("Request blocked");
+    }
+
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Fetch all relevant accounts at once
+    const accountIds = transactions.map((t) => t.accountId);
+    const accounts = await db.account.findMany({
+      where: {
+        id: { in: accountIds },
+        userId: user.id,
+      },
+    });
+
+    if (accounts.length !== accountIds.length) {
+      throw new Error("One or more accounts not found.");
+    }
+
+    // Create a map of accounts for quick access
+    const accountMap = new Map(accounts.map((acc) => [acc.id, acc]));
+
+    // Compute new balances for each account
+    const balanceChanges = {};
+    transactions.forEach((transaction) => {
+      const account = accountMap.get(transaction.accountId);
+      if (!account) throw new Error("Account not found");
+
+      const balanceChange = transaction.type === "EXPENSE" ? -transaction.amount : transaction.amount;
+      balanceChanges[transaction.accountId] = (balanceChanges[transaction.accountId] || account.balance.toNumber()) + balanceChange;
+    });
+
+    // Create transactions and update account balances in a single database transaction
+    const newTransactions = await db.$transaction(async (tx) => {
+      const createdTransactions = await tx.transaction.createMany({
+        data: transactions.map((transaction) => ({
+          ...transaction,
+          userId: user.id,
+          nextRecurringDate:
+            transaction.isRecurring && transaction.recurringInterval
+              ? calculateNextRecurringDate(transaction.date, transaction.recurringInterval)
+              : null,
+        })),
+      });
+
+      // Update balances for each affected account
+      await Promise.all(
+        Object.entries(balanceChanges).map(([accountId, newBalance]) =>
+          tx.account.update({
+            where: { id: accountId },
+            data: { balance: newBalance },
+          })
+        )
+      );
+
+      return createdTransactions;
+    });
+
+    // Revalidate dashboard and account pages
+    revalidatePath("/dashboard");
+    accountIds.forEach((accountId) => revalidatePath(`/account/${accountId}`));
+
+    return { success: true, data: newTransactions };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+}
+
 export async function getTransaction(id) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
