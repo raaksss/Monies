@@ -77,6 +77,7 @@ export function AddTransactionForm({
   });
 
 
+
   const {
     loading: transactionLoading,
     fn: transactionFn,
@@ -116,27 +117,37 @@ export function AddTransactionForm({
   };
   //edit krna hai because we are receiving array of transactions and not a single transaction
   const handleStatementImport = (importedStatement) => {
-    if (importedStatement) {
+    if (importedStatement.length > 0) {
       setIsImporting(true);
-      setImportedTransactions(importedStatement)
-      setValue("amount", importedStatement[0].amount.toString());
-      setValue("date", new Date(importedStatement[0].date));
-
-      if (importedStatement[0].description) {
-        setValue("description", importedStatement[0].description);
-      }
-      if (importedStatement[0].category) {
-        const categoryObj = defaultCategories.find(cat => cat.name === importedStatement[0].category);
-        setValue("category", categoryObj ? categoryObj.id : ""); 
-      }
-
-      if (importedStatement[0].type) {
-        setValue("type", importedStatement[0].type);
-      }
-
+      setImportedTransactions(importedStatement);
+  
+      importedStatement.forEach((transaction, index) => {
+        setValue(`transactions.${index}.amount`, transaction.amount.toString());
+        setValue(`transactions.${index}.date`, new Date(transaction.date));
+  
+        if (transaction.description) {
+          setValue(`transactions.${index}.description`, transaction.description);
+        }
+  
+        if (transaction.category) {
+          const categoryObj = defaultCategories.find(
+            cat => cat.name.toLowerCase() === transaction.category.toLowerCase()
+          );
+          console.log(categoryObj)
+          console.log("Setting category:", categoryObj ? categoryObj.id : "other-expense");
+          setValue(`transactions.${index}.category`, categoryObj ? categoryObj.id : "other-expense"); 
+          console.log("Updated Form Value:", getValues(`transactions.${index}.category`));
+        }
+  
+        if (transaction.type) {
+          setValue(`transactions.${index}.type`, transaction.type);
+        }
+      });
       toast.success("Transactions imported successfully");
     }
   };
+
+
   const handleCancelImport = () => {
     setIsImporting(false);
     setImportedTransactions([]);
@@ -164,79 +175,202 @@ export function AddTransactionForm({
   const type = watch("type");
   const isRecurring = watch("isRecurring");
   const date = watch("date");
-
   return (
       <div>
       {isImporting ? (
             <>
-      <form className="space-y-6">
-      <div className="flex items-stretch gap-4">
-      {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} /> }
-      {!editMode && <StatementScanner onStatementImport={handleStatementImport} />}
-      </div>
-      <div>
-          <h3 className="text-lg font-semibold">Imported Transactions</h3>
-          <div className="space-y-4">
-            {importedTransactions.map((transaction, index) => (
-              <div key={index} className="border p-4 rounded-md">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium">Amount: ₹{transaction.amount}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Date: {format(new Date(transaction.date), "PPP")}
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Set the form values to this transaction's values
-                      setValue("amount", transaction.amount.toString());
-                      setValue("description", transaction.description);
-                      setValue("category", transaction.category);
-                      setValue("date", new Date(transaction.date));
-                    }}
-                  >
-                    Edit
-                  </Button>
-                </div>
-                <div className="mt-2">
-                  <label className="text-sm font-medium">Category</label>
-                  <Select
-                    value={transaction.category}
-                    onValueChange={(value) => {
-                      const updatedTransactions = [...importedTransactions];
-                      updatedTransactions[index].category = value;
-                      setImportedTransactions(updatedTransactions);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {defaultCategories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            ))}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+  <div className="flex items-stretch gap-4">
+    {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} />}
+    {!editMode && <StatementScanner onStatementImport={handleStatementImport} />}
+  </div>
+
+  {/* Transactions Section */}
+  <div>
+    <h3 className="text-lg font-semibold">Imported Transactions</h3>
+    <div className="space-y-4">
+      {importedTransactions.map((transaction, index) => (
+        <div key={index} className="border p-4 rounded-md space-y-4">
+          {/* Type (Income/Expense) */}
+          <div className="space-y-2">
+  <label className="text-sm font-medium">Type</label>
+  <Select
+    value={transaction.type}
+    defaultValue={type}
+    onValueChange={(value) => {
+      setValue(`transactions.${index}.type`, value); // Updates React Hook Form state
+      const updatedTransactions = [...importedTransactions];
+      updatedTransactions[index].type = value;
+      setImportedTransactions(updatedTransactions);
+    }}
+  >
+    <SelectTrigger>
+      <SelectValue placeholder="Select type" />
+    </SelectTrigger>
+    <SelectContent>
+            <SelectItem value="EXPENSE">Expense</SelectItem>
+            <SelectItem value="INCOME">Income</SelectItem>
+          </SelectContent>
+  </Select>
+  {errors?.transactions?.[index]?.type && (
+    <p className="text-red-500 text-sm">{errors.transactions[index].type.message}</p>
+  )}
+</div>
+
+          {/* Amount and Account */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Amount</label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={transaction.amount}
+                onChange={(e) => {
+                  const updatedTransactions = [...importedTransactions];
+                  updatedTransactions[index].amount = e.target.value;
+                  setImportedTransactions(updatedTransactions);
+                }}
+              />
+              {errors?.transactions?.[index]?.amount && (
+                <p className="text-red-500 text-sm">{errors.transactions[index].amount.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Account</label>
+              <Select
+                value={accounts.find((a) => a.isDefault)?.id || accounts[0]?.id}
+                onValueChange={(value) => {
+                  const updatedTransactions = [...importedTransactions];
+                  updatedTransactions[index].accountId = value;
+                  setImportedTransactions(updatedTransactions);
+                }}
+                defaultValue={getValues("accountId")}
+
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name} (₹{parseFloat(account.balance).toFixed(2)})
+                    </SelectItem>
+                  ))}
+                   <CreateAccountDrawer>
+                <Button
+                  variant="ghost"
+                  className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                >
+                  Create Account
+                </Button>
+              </CreateAccountDrawer>
+                </SelectContent>
+              </Select>
+              {errors?.transactions?.[index]?.accountId && (
+                <p className="text-red-500 text-sm">{errors.transactions[index].accountId.message}</p>
+              )}
+            </div>
           </div>
 
-          {/* Buttons to handle bulk actions */}
-          <div className="flex space-x-4">
-            <Button variant="outline" onClick={handleCancelImport}>
-              Cancel
-            </Button>
-            <Button onClick={handleBulkAddTransactions}>
-              Add All Transactions
-            </Button>
+          {/* Category */}
+          <div className="space-y-1">
+  <label className="text-sm font-medium">Category</label>
+  <Select
+    value={watch(`transactions.${index}.category`)} // Ensure it watches the form value
+    onValueChange={(value) => {
+      console.log(`Dropdown changed: ${value}`);
+      setValue(`transactions.${index}.category`, value); // Update form value
+      const updatedTransactions = [...importedTransactions];
+      updatedTransactions[index].category = value; // Update local state
+      setImportedTransactions(updatedTransactions);
+    }}
+>
+    <SelectTrigger>
+      <SelectValue placeholder="Select category" />
+    </SelectTrigger>
+    <SelectContent>
+      {defaultCategories.map((category) => (
+        <SelectItem key={category.id} value={category.id}>
+          {category.name}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+  {errors?.transactions?.[index]?.category && (
+    <p className="text-red-500 text-sm">{errors.transactions[index].category.message}</p>
+  )}
+</div>
+
+{/* Auto-assign category from imported statement */}
+          {/* Date */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Date</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full pl-3 text-left font-normal",
+                    !transaction.date && "text-muted-foreground"
+                  )}
+                >
+                  {transaction.date ? format(new Date(transaction.date), "PPP") : <span>Pick a date</span>}
+                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={new Date(transaction.date)}
+                  onSelect={(date) => {
+                    const updatedTransactions = [...importedTransactions];
+                    updatedTransactions[index].date = date;
+                    setImportedTransactions(updatedTransactions);
+                  }}
+                  disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            {errors?.transactions?.[index]?.date && (
+              <p className="text-red-500 text-sm">{errors.transactions[index].date.message}</p>
+            )}
+          </div>
+
+
+          {/* Description */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Description</label>
+            <Input
+              type="text"
+              value={transaction.description || ""}
+              onChange={(e) => {
+                const updatedTransactions = [...importedTransactions];
+                updatedTransactions[index].description = e.target.value;
+                setImportedTransactions(updatedTransactions);
+              }}
+              placeholder="Enter description"
+            />
+            {errors?.transactions?.[index]?.description && (
+              <p className="text-red-500 text-sm">{errors.transactions[index].description.message}</p>
+            )}
           </div>
         </div>
-      </form>
+      ))}
+    </div>
+  </div>
+  {/* Bulk Actions */}
+  <div className="flex gap-4 space-x-4">
+    <Button variant="outline" onClick={handleCancelImport} className="w-full">
+      Cancel
+    </Button>
+    <Button className="w-full" onClick={handleBulkAddTransactions}>
+      Add All Transactions
+    </Button>
+  </div>
+</form>
             </>
           ) : (
             <>
