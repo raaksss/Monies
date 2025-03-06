@@ -140,12 +140,17 @@ export function AddTransactionForm({
         }
   
         if (transaction.type) {
-          setValue(`transactions.${index}.type`, transaction.type);
+          const formattedType = transaction.type.toUpperCase() === "EXPENSE" ? "EXPENSE" : "INCOME";
+          setValue(`transactions.${index}.type`, formattedType);
+          console.log("Updated Form Value:", getValues(`transactions.${index}.type`));
+
         }
+
       });
       toast.success("Transactions imported successfully");
     }
   };
+  
 
 
   const handleCancelImport = () => {
@@ -159,7 +164,9 @@ export function AddTransactionForm({
     // Reset or redirect after bulk add
   };
 
-
+  useEffect(() => {
+    console.log("Current Form State:", watch(`transactions.type`));
+  }, [watch(`transactions.type`)]);
   useEffect(() => {
     if (transactionResult?.success && !transactionLoading) {
       toast.success(
@@ -195,15 +202,14 @@ export function AddTransactionForm({
           <div className="space-y-2">
   <label className="text-sm font-medium">Type</label>
   <Select
-    value={transaction.type}
-    defaultValue={type}
-    onValueChange={(value) => {
-      setValue(`transactions.${index}.type`, value); // Updates React Hook Form state
-      const updatedTransactions = [...importedTransactions];
-      updatedTransactions[index].type = value;
-      setImportedTransactions(updatedTransactions);
-    }}
-  >
+  value={watch(`transactions.${index}.type`) || ""} 
+  onValueChange={(value) => {
+    setValue(`transactions.${index}.type`, value);
+    const updatedTransactions = [...importedTransactions];
+    updatedTransactions[index].type = value;
+    setImportedTransactions(updatedTransactions);
+  }}
+>
     <SelectTrigger>
       <SelectValue placeholder="Select type" />
     </SelectTrigger>
