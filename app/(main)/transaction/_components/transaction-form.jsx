@@ -198,6 +198,7 @@ export function AddTransactionForm({
             <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
               {watch(`transactions.${index}.type`) || "Type"}
             </span>
+            <span className="text-gray-600">{transaction.description}</span>
             <span className="text-gray-600">₹{transaction.amount}</span>
           </div>
           <span className="text-xs text-gray-500">
