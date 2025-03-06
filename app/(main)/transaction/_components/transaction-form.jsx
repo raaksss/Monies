@@ -194,6 +194,16 @@ export function AddTransactionForm({
     }
   }, [transactionResult, transactionLoading, editMode]);
 
+  useEffect(() => {
+    if (bulkTransactionResult?.success && !bulkTransactionLoading) {
+      toast.success(
+         "Transactions created successfully"
+      );
+      reset();
+      router.push(`/account/${bulkTransactionResult.data.accountId}`);
+    }
+  }, [bulkTransactionResult, bulkTransactionLoading]);
+
   const type = watch("type");
   const isRecurring = watch("isRecurring");
   const date = watch("date");
