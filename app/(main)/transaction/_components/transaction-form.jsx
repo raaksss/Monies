@@ -107,16 +107,14 @@ export function AddTransactionForm({
   };
 
   const handleBulkAddTransactions = () => {
-    console.log(importedTransactions)
-    
-      {/*if (!importedTransactions.length) return;
+      if (!importedTransactions.length) return;
       const formattedTransactions = importedTransactions.map((t) => ({
         ...t,
         amount: parseFloat(t.amount),
       }));
       bulkTransactionFn(formattedTransactions);
 
-*/}
+
   };
 
   const handleScanComplete = (scannedData) => {
@@ -153,13 +151,11 @@ export function AddTransactionForm({
             (cat) => cat.name.toLowerCase() === transaction.category.toLowerCase()
           );
   
-          // Instead of storing the name, always store the ID
           setValue(
             `transactions.${index}.category`,
             categoryObj ? categoryObj.id : "other-expense"
           );
-  
-          // Ensure the local state also has the correct ID
+
           importedStatement[index].category = categoryObj ? categoryObj.id : "other-expense";
         }
   
@@ -167,6 +163,7 @@ export function AddTransactionForm({
           const formattedType =
             transaction.type.toUpperCase() === "EXPENSE" ? "EXPENSE" : "INCOME";
           setValue(`transactions.${index}.type`, formattedType);
+          importedStatement[index].type = formattedType; 
         }
       });
   
@@ -185,9 +182,6 @@ export function AddTransactionForm({
   };
   
 
-  useEffect(() => {
-    console.log("Current Form State:", watch(`transactions.type`));
-  }, [watch(`transactions.type`)]);
   useEffect(() => {
     if (transactionResult?.success && !transactionLoading) {
       toast.success(
