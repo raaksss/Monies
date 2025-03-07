@@ -66,7 +66,7 @@ export async function createTransaction(data) {
     }
 
     // Calculate new balance
-    const balanceChange = data.type === "EXPENSE" ? data.amount : -data.amount;
+    const balanceChange = data.type === "EXPENSE" ? -data.amount : +data.amount;
     const newBalance = account.balance.toNumber() + balanceChange;
 
     // Create transaction and update account balance
@@ -125,7 +125,7 @@ export async function createBulkTransactions(transactions) {
     let newBalance = Number(account.balance);
     transactions.forEach((transaction) => {
       const balanceChange =
-        transaction.type === "EXPENSE" ? transaction.amount : -transaction.amount;
+        transaction.type === "EXPENSE" ? -transaction.amount : +transaction.amount;
       newBalance += balanceChange;
     });
    
