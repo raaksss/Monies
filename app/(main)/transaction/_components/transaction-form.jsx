@@ -222,27 +222,27 @@ export function AddTransactionForm({
   </div>
 
   <div>
-  <h3 className="text-lg font-semibold">Imported Transactions</h3>
+  <h3 className="text-lg font-semibold dark:text-white">Imported Transactions</h3>
   <div className="grid gap-4">
     {importedTransactions.map((transaction, index) => (
-      <div key={index} className="border p-3 rounded-md bg-white shadow-sm">
+      <div key={index} className="border p-3 rounded-md bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm">
         {/* Compact Header with Type, Amount & Date */}
         <div className="flex justify-between items-center">
           <div className="text-sm font-medium flex items-center gap-2">
-            <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
+            <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded">
               {watch(`transactions.${index}.type`) || "Type"}
             </span>
-            <span className="text-gray-600">{transaction.description}</span>
-            <span className="text-gray-600">₹{transaction.amount}</span>
+            <span className="text-gray-600 dark:text-gray-300">{transaction.description}</span>
+            <span className="text-gray-600 dark:text-gray-300">₹{transaction.amount}</span>
           </div>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
             {transaction.date ? format(new Date(transaction.date), "MMM d, yyyy") : "Pick Date"}
           </span>
         </div>
 
         {/* Expandable Details */}
         <details className="mt-2">
-          <summary className="cursor-pointer text-blue-500 text-sm">More Details</summary>
+          <summary className="cursor-pointer text-blue-500 dark:text-blue-400 text-sm">More Details</summary>
           <div className="grid md:grid-cols-3 gap-2 mt-2">
             {/* Type Selector */}
             <Select
@@ -329,7 +329,7 @@ export function AddTransactionForm({
             {/* Date */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full dark:text-gray-300 dark:border-gray-700">
                   {transaction.date ? format(new Date(transaction.date), "PPP") : "Pick a date"}
                 </Button>
               </PopoverTrigger>
