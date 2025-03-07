@@ -67,7 +67,7 @@ const HeroSection = () => {
                 height={500}
                 className="rounded-lg shadow-2xl"
               />
-              <div className="absolute -bottom-6 -right-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg">
+              <div className="absolute -bottom-4 -right-3 sm:-bottom-6 sm:-right-4 bg-white dark:bg-gray-800 p-1 sm:p-2 rounded-lg shadow-lg">
                 <p className="text-sm font-medium dark:text-white">Total Savings</p>
                 <p className="text-2xl font-bold text-green-600 dark:text-green-400">₹12,580</p>
               </div>
