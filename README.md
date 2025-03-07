@@ -1,3 +1,4 @@
+#MONIES
 A budget managing and tracking finances app!
 
 
