@@ -161,15 +161,18 @@ export function AddTransactionForm({
   
         if (transaction.type) {
           const formattedType =
-            transaction.type.toUpperCase() === "EXPENSE" ? "EXPENSE" : "INCOME";
+          transaction.type.toUpperCase() === "EXPENSE" ? "EXPENSE" : "INCOME";
           setValue(`transactions.${index}.type`, formattedType);
-          importedStatement[index].type = formattedType; 
+          importedStatement[index].type = formattedType;
+          if(formattedType === 'INCOME'){
+            setValue(`transactions.${index}.category`,"other-income");
+            importedStatement[index].category = "other-income";
+          } 
         }
       });
-  
       // Update local state to reflect changes
+      console.log("final", importedStatement)
       setImportedTransactions([...importedStatement]);
-  
       toast.success("Transactions imported successfully");
     }
   };
@@ -181,7 +184,6 @@ export function AddTransactionForm({
     toast.success("Import canceled.");
   };
   
-
   useEffect(() => {
     if (transactionResult?.success && !transactionLoading) {
       toast.success(
@@ -213,7 +215,6 @@ export function AddTransactionForm({
       <div>
       {isImporting ? (
             <>
-
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
   <div className="flex items-stretch gap-4">
     {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} />}

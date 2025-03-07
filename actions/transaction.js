@@ -369,6 +369,8 @@ export async function importStatementTransactions(file){
       - category (STRICTLY One of: Salary, Freelance, Investments, Business, Rental, Other-income, Housing, Transportation, Groceries, Utilities, Entertainment, Food, Shopping, Healthcare, Education, Personal, Travel, Insurance, Gift, Bills, Other-expense)
       (If there is merchant category given already, that will be considered as superior in judging the category.)
       {The category should be chosen smartly:
+        1. If the type is Income: the category should be chosen only from (Salary, Freelance, Investments, Business, Rental, Other-income)
+
       	2.	Pattern Matching for Keywords in Descriptions
 	        •	"paytmqr" → Merchant Payment (likely shopping, groceries, food, or services)
 	        •	"amazon","flipkart","myntra" → Shopping
@@ -389,7 +391,7 @@ export async function importStatementTransactions(file){
 	        •	If no clear classification is found, assign "other-expense" for debits and "other-income" for credits.    
       }
       - date (YYYY-MM-DD)
-      - description (String) (Don't include particulars as description)
+      - description (String) (Don't include particulars as description, Insight meaningful info from Particulars and give as Description. No transaction id as description allowed!!)
       - isRecurring (Boolean, default: false)
       - recurringInterval (One of: daily, weekly, bi-weekly, monthly, quarterly, yearly, or null. Only set if isRecurring is true)
       - nextRecurringDate (YYYY-MM-DD or null. Only set if isRecurring is true)
