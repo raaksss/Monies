@@ -146,7 +146,12 @@ export function AccountChart({ transactions }) {
                   backgroundColor: "hsl(var(--popover))",
                   border: "1px solid hsl(var(--border))",
                   borderRadius: "var(--radius)",
+                  color: "hsl(var(--popover-foreground))"
                 }}
+                labelStyle={{ color: "hsl(var(--popover-foreground))" }}
+                itemStyle={{ color: "hsl(var(--popover-foreground))" }}
+                wrapperStyle={{ outline: "none" }}
+                cursor={{ fill: 'rgba(50, 50, 50, 0.3)' }}
               />
               <Legend />
               <Bar
