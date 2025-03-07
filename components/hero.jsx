@@ -69,7 +69,7 @@ const HeroSection = () => {
               />
               <div className="absolute -bottom-6 -right-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg">
                 <p className="text-sm font-medium dark:text-white">Total Savings</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">$12,580</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">₹12,580</p>
               </div>
             </div>
           </div>
