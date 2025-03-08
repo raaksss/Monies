@@ -1,15 +1,14 @@
 "use client";
 
 import { useRef, useEffect} from "react";
-import { Camera, Loader2, ReceiptIndianRupee } from "lucide-react";
+import { Camera, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import useFetch from "@/hooks/use-fetch";
-import { importStatementTransactions,scanReceipt } from "@/actions/transaction";
+import { scanReceipt } from "@/actions/transaction";
 
 export function ReceiptScanner({ onScanComplete}) {
   const fileInputRef = useRef(null);
-  const statementInputRef = useRef(null);
 
   const {
     loading: scanReceiptLoading,
@@ -17,14 +16,14 @@ export function ReceiptScanner({ onScanComplete}) {
     data: scannedData,
   } = useFetch(scanReceipt);
 
-  const handleFileUpload = async (file,type) => {
+  const handleFileUpload = async (file) => {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File size should be less than 5MB");
       return;
     }
-      await scanReceiptFn(file);
+    await scanReceiptFn(file);
   };
 
   useEffect(() => {
@@ -34,10 +33,8 @@ export function ReceiptScanner({ onScanComplete}) {
     }
   }, [scanReceiptLoading, scannedData]);
 
-
   return (
-<div className="w-full flex items-center">
-      {/*Receipt Scanner */}
+    <div className="w-full">
       <input
         type="file"
         ref={fileInputRef}
@@ -46,25 +43,25 @@ export function ReceiptScanner({ onScanComplete}) {
         capture="environment"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) handleFileUpload(file, "receipt");
+          if (file) handleFileUpload(file);
         }}
       />
       <Button
         type="button"
         variant="outline"
-        className="w-full h-10 bg-gradient-to-br from-orange-500 via-pink-500 to-purple-500 animate-gradient hover:opacity-90 transition-opacity text-white hover:text-white"
+        className="w-full h-9 sm:h-10 bg-gradient-to-br from-orange-500 via-pink-500 to-purple-500 animate-gradient hover:opacity-90 transition-opacity text-white hover:text-white text-xs sm:text-sm"
         onClick={() => fileInputRef.current?.click()}
         disabled={scanReceiptLoading}
       >
         {scanReceiptLoading ? (
           <>
-            <Loader2 className="mr-2 animate-spin" />
-            <span>Scanning Receipt...</span>
+            <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+            <span>Scanning...</span>
           </>
         ) : (
           <>
-            <Camera className="mr-2" />
-            <span>Scan Receipt with AI</span>
+            <Camera className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            <span>Scan Receipt</span>
           </>
         )}
       </Button>
