@@ -30,7 +30,8 @@ export default function RootLayout({ children }) {
             <main className="min-h-screen">{children}</main>
             <Toaster richColors />
 
-            <footer className="bg-blue-50 dark:bg-gray-900 py-12">
+           
+            <footer className="bg-blue-50 dark:bg-gray-900 py-6">
               <div className="container mx-auto px-4 text-center text-gray-600 dark:text-gray-400">
                 <p>Track every penny.</p>
               </div>
