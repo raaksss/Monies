@@ -159,12 +159,16 @@ export function AccountChart({ transactions }) {
                 name="Income"
                 fill="#22c55e"
                 radius={[4, 4, 0, 0]}
+                id='income-bar'
+                isAnimationActive={false}
               />
               <Bar
                 dataKey="expense"
                 name="Expense"
                 fill="#ef4444"
                 radius={[4, 4, 0, 0]}
+                id='expense-bar'
+                isAnimationActive={false}
               />
             </BarChart>
           </ResponsiveContainer>
