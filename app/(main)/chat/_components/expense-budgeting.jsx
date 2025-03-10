@@ -42,7 +42,7 @@ export default function ExpenseBudgeting() {
         setMessages(prev => [
           prev[0], // Keep the welcome message
           {
-            text: `💰 Your top expense: ${analysis.highestCategory.name} (₹${analysis.highestCategory.amount.toFixed(2)})\n\nQuick tip: ${analysis.advice.split('.')[0]}.`,
+            text: `💰 Your top expense: ${analysis.highestCategory.name} (₹${analysis.highestCategory.amount.toFixed(2)}).`,
             isAi: true
           }
         ]);
