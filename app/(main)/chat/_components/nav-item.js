@@ -1,8 +1,25 @@
-const NavItem = ({ icon, label }) => (
-  <div className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-100 dark:hover:text-gray-900 dark:text-gray-300 cursor-pointer transition-colors">
-    {icon}
-    <span className="text-sm font-medium">{label}</span>
-  </div>
-);
+"use client";
 
-export default NavItem;
+import { Button } from "@/components/ui/button";
+
+export default function NavItem({ icon, label, active, onClick }) {
+  const handleClick = () => {
+    console.log(`NavItem clicked: ${label}`);
+    onClick?.();
+  };
+
+  return (
+    <Button
+      variant={active ? "default" : "ghost"}
+      className={`w-full justify-start gap-2 ${
+        active
+          ? "bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+          : "hover:bg-gray-100 dark:hover:bg-gray-800"
+      }`}
+      onClick={handleClick}
+    >
+      {icon}
+      <span className="truncate">{label}</span>
+    </Button>
+  );
+} 
