@@ -18,7 +18,7 @@ export default function ChatMessage({ message, isAi }) {
       {isAi ? (
         <Avatar>
           <AvatarImage src="/bot-avatar.png" />
-          <AvatarFallback>AI</AvatarFallback>
+          <AvatarFallback className="text-white font-light font-size-sm">Fina</AvatarFallback>
         </Avatar>
       ) : (
         <Avatar>
