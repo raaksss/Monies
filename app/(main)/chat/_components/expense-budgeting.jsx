@@ -8,16 +8,18 @@ import ChatMessage from "./chat-message";
 import { getFinancialAdvice, analyzeExpenses } from "@/actions/chat";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
+import { useChatScroll } from "./use-chat-scroll";
 
-export default function ExpenseBudgeting() {
-  const [messages, setMessages] = useState([]);
+export default function ExpenseBudgeting({ messages, setMessages }) {
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { isLoaded, isSignedIn } = useAuth();
+  const messagesContainerRef = useChatScroll(messages);
 
   // Initialize chat with expense analysis
   useEffect(() => {
     if (!isLoaded) return;
+    if (messages.length > 0) return; // Don't set initial message if we already have messages
 
     // Show initial message immediately
     if (!isSignedIn) {
@@ -56,7 +58,7 @@ export default function ExpenseBudgeting() {
     };
 
     initialize();
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, messages.length, setMessages]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -100,7 +102,10 @@ export default function ExpenseBudgeting() {
   return (
     <div className="flex flex-col h-full">
       {/* Messages Area - Takes remaining height with scrolling */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-800 rounded-lg mx-4 mt-4">
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 min-h-0 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-800 rounded-lg mx-4 mt-4"
+      >
         <div className="space-y-4">
           {messages.map((message, index) => (
             <ChatMessage

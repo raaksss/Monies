@@ -20,9 +20,19 @@ export async function getFinancialAdvice(message, transactionHistory = null) {
       context = `Based on the user's transaction history: ${JSON.stringify(transactionHistory)}. `;
     }
 
-    const prompt = `${context}As a financial advisor, provide professional advice for the following query: ${message}. 
-    Focus on practical, actionable advice and explain the reasoning behind your recommendations. 
-    Important: Provide your response in plain text without any markdown formatting (no *, **, #, or other markdown symbols).`;
+    const prompt = `${context}As a financial advisor, provide concise and clear advice for the following query: ${message}. 
+
+    Format your response as follows:
+    1. Start with a brief one-line summary
+    2. Provide maximum 3-4 key points
+    3. Each point should be numbered and on a new line
+    4. Keep each point to 1-2 sentences maximum
+    5. Add a blank line between points for readability
+
+    Important: 
+    - Do not use any markdown formatting (no *, **, #, or other symbols)
+    - Keep the total response under 200 words
+    - Focus on actionable advice`;
 
     try {
       const result = await model.generateContent(prompt);
@@ -87,8 +97,19 @@ export async function analyzeExpenses() {
       .sort(([, a], [, b]) => b - a)[0];
 
     try {
-      const prompt = `As a financial advisor, provide specific advice on how to reduce spending in the category "${highestCategory[0]}" where the user has spent ₹${highestCategory[1].toFixed(2)} in the last 30 days. Include practical tips and alternatives for saving money in this category. 
-      Important: Provide your response in plain text without any markdown formatting (no *, **, #, or other markdown symbols).`;
+      const prompt = `As a financial advisor, provide specific advice to optimize spending in the category "${highestCategory[0]}" (₹${highestCategory[1].toFixed(2)} spent in last 30 days).
+
+      Format your response as follows:
+      1. Start with a one-line observation about the spending
+      2. Provide 3 practical money-saving tips
+      3. Number each tip and put it on a new line
+      4. Keep each tip to 1-2 sentences maximum
+      5. Add a blank line between tips for readability
+
+      Important:
+      - Do not use any markdown formatting (no *, **, #, or other symbols)
+      - Keep the total response under 150 words
+      - Focus on specific, actionable tips`;
 
       const result = await model.generateContent(prompt);
       const response = result.response;

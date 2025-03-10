@@ -31,6 +31,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "framer-motion": "^12.4.10",
     "inngest": "^3.27.4",
     "lucide-react": "^0.462.0",
     "next": "15.0.3",
