@@ -32,6 +32,7 @@ import { transactionSchema } from "@/app/lib/schema";
 import { ReceiptScanner } from "./recipt-scanner";
 import { defaultCategories } from "@/data/categories";
 import { StatementScanner } from "./statement-scanner";
+import { VoiceInput } from "./voice-input";
 
 export function AddTransactionForm({
   accounts,
@@ -177,6 +178,22 @@ export function AddTransactionForm({
     }
   };
 
+  const handleVoiceInput = (voiceData) => {
+    if (voiceData) {
+      // Set type first to ensure it updates correctly
+      setValue("type", voiceData.type);
+      // Add a small delay to ensure type is set before other fields
+      setTimeout(() => {
+        setValue("amount", voiceData.amount.toString());
+        setValue("date", new Date(voiceData.date));
+        setValue("description", voiceData.description);
+        if (voiceData.category) {
+          setValue("category", voiceData.category);
+        }
+        toast.success("Voice input added successfully");
+      }, 100);
+    }
+  };
 
   const handleCancelImport = () => {
     setIsImporting(false);
@@ -219,6 +236,7 @@ export function AddTransactionForm({
             <div className="flex flex-col sm:flex-row items-stretch gap-2 sm:gap-4">
               {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} />}
               {!editMode && <StatementScanner onStatementImport={handleStatementImport} />}
+              {!editMode && <VoiceInput onVoiceInput={handleVoiceInput} />}
             </div>
 
             <div>
@@ -400,12 +418,13 @@ export function AddTransactionForm({
             <div className="flex flex-col sm:flex-row items-stretch gap-2 sm:gap-4">
               {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} />}
               {!editMode && <StatementScanner onStatementImport={handleStatementImport} />}
+              {!editMode && <VoiceInput onVoiceInput={handleVoiceInput} />}
             </div>
 
             {/* Type */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Type</label>
-              <Select onValueChange={(value) => setValue("type", value)} defaultValue={type}>
+              <Select onValueChange={(value) => setValue("type", value)} value={type}>
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
