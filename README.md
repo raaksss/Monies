@@ -5,11 +5,11 @@
   <h3>Track every penny.</h3>
 </div>
 
-## 🌟 Overview
+## Overview
 
 Monies is a comprehensive financial management platform designed to help you take control of your finances. From expense tracking to budget management, debt tracking, and AI-powered financial advice, Monies provides all the tools you need to manage your money effectively in one place.
 
-## ✨ Features
+## Features
 
 ### 💰 Dashboard
 - Get a complete overview of your financial health
@@ -39,6 +39,7 @@ Monies is a comprehensive financial management platform designed to help you tak
 - Maintain a running balance with each person
 - Add, edit, and delete transactions
 - Clear visual indicators for money owed to you vs. money you owe
+- Use + for money you owe others, - for money others owe you
 
 ### 🤖 Fina - AI Financial Assistant
 - Get personalized financial advice
@@ -46,7 +47,7 @@ Monies is a comprehensive financial management platform designed to help you tak
 - Receive budgeting recommendations
 - Plan for financial goals
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 - **Frontend**: Next.js, React, Tailwind CSS
 - **Backend**: Next.js API Routes, Server Actions
@@ -56,7 +57,7 @@ Monies is a comprehensive financial management platform designed to help you tak
 - **State Management**: React Hooks
 - **AI Integration**: Gemini API
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -108,35 +109,7 @@ Monies is a comprehensive financial management platform designed to help you tak
 
 6. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
-## 📱 Usage
-
-### Account Management
-1. Sign up or log in using your email or social accounts
-2. Create accounts to track different financial sources (checking, savings, etc.)
-3. Set initial balances for each account
-
-### Transaction Tracking
-1. Add new transactions with amount, category, and description
-2. Upload receipts for expense tracking
-3. Set up recurring transactions for regular income/expenses
-
-### Budget Planning
-1. Create budgets with monthly limits
-2. Track your spending against budgets
-3. Receive notifications when approaching budget limits
-
-### Borrow & Lend Tracking
-1. Record money borrowed from or lent to others
-2. Use + for money you owe others, - for money others owe you
-3. View running balances for each person
-4. Edit or delete transactions as needed
-
-### AI Financial Assistant
-1. Chat with Fina for financial advice
-2. Ask questions about your spending patterns
-3. Get recommendations for improving your financial health
-
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
