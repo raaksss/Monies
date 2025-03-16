@@ -63,26 +63,21 @@ export async function analyzeExpenses() {
       throw new Error("User not found in database");
     }
 
-    // Get transactions from the last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
+    // Get all expense transactions instead of just the last 30 days
     const transactions = await db.transaction.findMany({
       where: {
         userId: user.id,
         type: "EXPENSE",
-        date: {
-          gte: thirtyDaysAgo,
-        },
       },
       select: {
         amount: true,
         category: true,
+        date: true,
       },
     });
 
     if (!transactions.length) {
-      throw new Error("No expense transactions found in the last 30 days");
+      throw new Error("No expense transactions found");
     }
 
     // Group and sum transactions by category
@@ -96,20 +91,33 @@ export async function analyzeExpenses() {
     const highestCategory = Object.entries(categoryTotals)
       .sort(([, a], [, b]) => b - a)[0];
 
+    // Calculate the date range for context
+    const dates = transactions.map(t => new Date(t.date));
+    const oldestDate = new Date(Math.min(...dates));
+    const newestDate = new Date(Math.max(...dates));
+    const monthsDiff = (newestDate.getFullYear() - oldestDate.getFullYear()) * 12 + 
+                       (newestDate.getMonth() - oldestDate.getMonth());
+    const dateRangeText = monthsDiff > 0 
+      ? `over the past ${monthsDiff + 1} months` 
+      : `this month`;
+
     try {
-      const prompt = `As a financial advisor, provide specific advice to optimize spending in the category "${highestCategory[0]}" (₹${highestCategory[1].toFixed(2)} spent in last 30 days).
+      const prompt = `As a financial advisor, provide specific advice to optimize spending in the category "${highestCategory[0]}" (₹${highestCategory[1].toFixed(2)} spent ${dateRangeText}).
 
-      Format your response as follows:
-      1. Start with a one-line observation about the spending
-      2. Provide 3 practical money-saving tips
-      3. Number each tip and put it on a new line
-      4. Keep each tip to 1-2 sentences maximum
-      5. Add a blank line between tips for readability
+Format your response EXACTLY as follows:
+1. Start with a one-line observation about the spending
+2. Add a BLANK LINE after the observation
+3. Provide exactly 3 practical money-saving tips
+4. Number each tip (1, 2, 3) and ensure each tip starts on a NEW LINE
+5. Put a BLANK LINE between each numbered tip
+6. Keep each tip to 1-2 sentences maximum
 
-      Important:
-      - Do not use any markdown formatting (no *, **, #, or other symbols)
-      - Keep the total response under 150 words
-      - Focus on specific, actionable tips`;
+VERY IMPORTANT:
+- Each numbered tip MUST start on a new line
+- There MUST be a blank line between each tip
+- Do not use any markdown formatting (no *, **, #, or other symbols)
+- Keep the total response under 150 words
+- Focus on specific, actionable tips`;
 
       const result = await model.generateContent(prompt);
       const response = result.response;
