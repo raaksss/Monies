@@ -4,9 +4,16 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Minus, UserPlus, Trash2 } from "lucide-react";
-import { createDebt, getDebtSummary, deleteDebt } from "@/actions/debts";
+import { Plus, Minus, UserPlus, Trash2, Edit2 } from "lucide-react";
+import { createDebt, getDebtSummary, deleteDebt, updateDebt } from "@/actions/debts";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function BorrowLandingPage() {
   const [loading, setLoading] = useState(true);
@@ -15,6 +22,8 @@ export default function BorrowLandingPage() {
     personName: "",
     amount: "",
   });
+  const [editingDebt, setEditingDebt] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Fetch debt summary on component mount
   useEffect(() => {
@@ -79,6 +88,43 @@ export default function BorrowLandingPage() {
     } catch (error) {
       console.error("Error deleting debt:", error);
       toast.error("An error occurred while deleting the transaction");
+    }
+  };
+
+  // Open edit modal with transaction data
+  const handleEditClick = (transaction, personName) => {
+    setEditingDebt({
+      id: transaction.id,
+      personName: personName,
+      amount: transaction.amount.toString(),
+    });
+    setIsEditModalOpen(true);
+  };
+
+  // Handle edit form submission
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingDebt.personName || !editingDebt.amount) {
+      toast.error("Person name and amount are required");
+      return;
+    }
+
+    try {
+      const response = await updateDebt(editingDebt.id, {
+        personName: editingDebt.personName,
+        amount: parseFloat(editingDebt.amount),
+      });
+
+      if (response.success) {
+        toast.success("Transaction updated successfully");
+        setIsEditModalOpen(false);
+        fetchDebtSummary();
+      } else {
+        toast.error(response.error || "Failed to update transaction");
+      }
+    } catch (error) {
+      console.error("Error updating debt:", error);
+      toast.error("An error occurred while updating the transaction");
     }
   };
 
@@ -211,14 +257,24 @@ export default function BorrowLandingPage() {
                       >
                         {transaction.amount >= 0 ? "+" : "-"}₹{Math.abs(transaction.amount)}
                       </p>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleDeleteDebt(transaction.id)}
-                        title="Delete transaction"
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleEditClick(transaction, person.displayName)}
+                          title="Edit transaction"
+                        >
+                          <Edit2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleDeleteDebt(transaction.id)}
+                          title="Delete transaction"
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -227,6 +283,80 @@ export default function BorrowLandingPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Transaction Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Transaction</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4 py-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="edit-name" className="text-sm font-medium">Person's Name</label>
+                <Input
+                  id="edit-name"
+                  value={editingDebt?.personName || ""}
+                  onChange={(e) =>
+                    setEditingDebt({ ...editingDebt, personName: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="edit-amount" className="text-sm font-medium">Amount</label>
+                <div className="flex gap-2">
+                  <Input
+                    id="edit-amount"
+                    type="number"
+                    value={editingDebt?.amount || ""}
+                    onChange={(e) =>
+                      setEditingDebt({ ...editingDebt, amount: e.target.value })
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant={editingDebt?.amount >= 0 ? "default" : "ghost"}
+                    onClick={() =>
+                      setEditingDebt({ 
+                        ...editingDebt, 
+                        amount: Math.abs(parseFloat(editingDebt?.amount || 0)).toString() 
+                      })
+                    }
+                    className="w-12"
+                    title="You owe them"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={editingDebt?.amount < 0 ? "default" : "ghost"}
+                    onClick={() =>
+                      setEditingDebt({ 
+                        ...editingDebt, 
+                        amount: (-Math.abs(parseFloat(editingDebt?.amount || 0))).toString() 
+                      })
+                    }
+                    className="w-12"
+                    title="They owe you"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsEditModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

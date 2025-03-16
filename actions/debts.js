@@ -180,3 +180,45 @@ export async function deleteDebt(id) {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Update an existing debt record
+ */
+export async function updateDebt(id, data) {
+  try {
+    const userId = await getUserId();
+    
+    // Check if debt exists and belongs to user
+    const debt = await db.debt.findUnique({
+      where: { id }
+    });
+
+    if (!debt) {
+      throw new Error("Debt not found");
+    }
+
+    if (debt.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+
+    // Validate input
+    if (!data.personName || data.amount === undefined) {
+      throw new Error("Person name and amount are required");
+    }
+
+    // Update the debt
+    const updatedDebt = await db.debt.update({
+      where: { id },
+      data: {
+        personName: data.personName,
+        amount: data.amount
+      }
+    });
+
+    revalidatePath("/borrow");
+    return { success: true, debt: serializeDebt(updatedDebt) };
+  } catch (error) {
+    console.error("Error updating debt:", error);
+    return { success: false, error: error.message };
+  }
+}
