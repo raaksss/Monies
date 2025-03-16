@@ -133,14 +133,20 @@ export async function getDebtSummary() {
       });
     });
 
+    // Convert to array and sort by displayName for consistent ordering
+    const summaryArray = Object.values(summary).map(item => ({
+      ...item,
+      transactions: item.transactions.sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      )
+    }));
+
+    // Log for debugging
+    console.log("Debt summary before returning:", summaryArray);
+
     return { 
       success: true, 
-      summary: Object.values(summary).map(item => ({
-        ...item,
-        transactions: item.transactions.sort((a, b) => 
-          new Date(b.createdAt) - new Date(a.createdAt)
-        )
-      }))
+      summary: summaryArray
     };
   } catch (error) {
     console.error("Error fetching debt summary:", error);
