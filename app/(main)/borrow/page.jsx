@@ -86,7 +86,7 @@ export default function BorrowLandingPage() {
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-4xl font-bold tracking-tight gradient-title">
-          Borrow Tracker
+          Borrow & Lend Log
         </h1>
       </div>
 
@@ -95,7 +95,7 @@ export default function BorrowLandingPage() {
         <CardHeader>
           <CardTitle className="text-xl font-semibold flex items-center gap-2">
             <UserPlus className="w-5 h-5" />
-            Add New Borrow
+            Add New Borrow/Lend
           </CardTitle>
         </CardHeader>
         <CardContent>
