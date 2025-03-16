@@ -298,7 +298,9 @@ export default function BorrowLandingPage() {
 
       {/* Debts Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {debtSummary.map((item) => (
+        {debtSummary
+          .filter(item => item.total !== 0) // Filter out items with zero balance
+          .map((item) => (
           <Card 
             key={item.displayName} 
             className={item.total < 0 ? "border-green-200" : "border-red-200"}
@@ -329,6 +331,11 @@ export default function BorrowLandingPage() {
             </CardContent>
           </Card>
         ))}
+        {debtSummary.length > 0 && debtSummary.filter(item => item.total !== 0).length === 0 && (
+          <div className="col-span-full text-center py-8 text-muted-foreground">
+            No active debts. All balances are settled.
+          </div>
+        )}
       </div>
 
       {/* Transaction History with Filters and Pagination */}
