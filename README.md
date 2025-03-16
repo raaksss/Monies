@@ -50,7 +50,7 @@ Monies is a comprehensive financial management platform designed to help you tak
 - **Authentication**: Clerk
 - **Styling**: Tailwind CSS, Shadcn UI
 - **State Management**: React Hooks
-- **AI Integration**: OpenAI API
+- **AI Integration**: Gemini API
 
 ## 🚀 Getting Started
 
@@ -82,7 +82,12 @@ Monies is a comprehensive financial management platform designed to help you tak
    DIRECT_URL=your_direct_postgresql_connection_string
    CLERK_SECRET_KEY=your_clerk_secret_key
    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-   OPENAI_API_KEY=your_openai_api_key (optional, for AI features)
+   GEMINI_API_KEY=your_gemini_api_key (optional, for AI features)
+   RESEND_API_KEY=your_resend_api_key
+   ARCJET_KEY=your_arcjet_api_key
+   
+   NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+   NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
    ```
 
 4. Run database migrations:
