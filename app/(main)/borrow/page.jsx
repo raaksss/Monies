@@ -95,7 +95,7 @@ export default function BorrowLandingPage() {
         <CardHeader>
           <CardTitle className="text-xl font-semibold flex items-center gap-2">
             <UserPlus className="w-5 h-5" />
-            Add New Transaction
+            Add New Borrow
           </CardTitle>
         </CardHeader>
         <CardContent>
