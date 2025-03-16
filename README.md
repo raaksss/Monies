@@ -17,9 +17,14 @@ Monies is a comprehensive financial management platform designed to help you tak
 - Track account balances
 - Monitor budget progress
 
+### Methods of adding Transactions
+- Manually
+- Through voice
+- Through scan receipt with AI
+- Through import of card statement
+
 ### 📊 Transaction Management
 - Track all your income and expenses
-- Categorize transactions
 - Add receipts to transactions
 - Set up recurring transactions
 
@@ -33,7 +38,6 @@ Monies is a comprehensive financial management platform designed to help you tak
 - Keep track of money you've borrowed or lent
 - Maintain a running balance with each person
 - Add, edit, and delete transactions
-- Case-insensitive name matching for easy tracking
 - Clear visual indicators for money owed to you vs. money you owe
 
 ### 🤖 Fina - AI Financial Assistant
