@@ -1,53 +1,85 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Minus, UserPlus } from "lucide-react";
+import { Plus, Minus, UserPlus, Trash2 } from "lucide-react";
+import { createDebt, getDebtSummary, deleteDebt } from "@/actions/debts";
+import { toast } from "sonner";
 
 export default function BorrowLandingPage() {
-  const [debts, setDebts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [debtSummary, setDebtSummary] = useState([]);
   const [newDebt, setNewDebt] = useState({
-    name: "",
+    personName: "",
     amount: "",
   });
 
-  // Keep track of the original case of names
-  const [nameMap, setNameMap] = useState({});
+  // Fetch debt summary on component mount
+  useEffect(() => {
+    fetchDebtSummary();
+  }, []);
 
-  // Group debts by person (case insensitive) and calculate total
-  const groupedDebts = debts.reduce((acc, debt) => {
-    const lowerName = debt.name.toLowerCase();
-    if (!acc[lowerName]) {
-      acc[lowerName] = {
-        total: 0,
-        displayName: nameMap[lowerName] || debt.name // Use stored display name or current name
-      };
+  // Fetch debt summary from the server
+  const fetchDebtSummary = async () => {
+    setLoading(true);
+    try {
+      const response = await getDebtSummary();
+      if (response.success) {
+        setDebtSummary(response.summary || []);
+      } else {
+        toast.error(response.error || "Failed to fetch debts");
+      }
+    } catch (error) {
+      console.error("Error fetching debt summary:", error);
+      toast.error("An error occurred while fetching debts");
+    } finally {
+      setLoading(false);
     }
-    acc[lowerName].total -= parseFloat(debt.amount);
-    return acc;
-  }, {});
+  };
 
-  const handleSubmit = (e) => {
+  // Handle form submission to create a new debt
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!newDebt.name || !newDebt.amount) return;
-
-    const lowerName = newDebt.name.toLowerCase();
-    
-    // Store the first used version of the name
-    if (!nameMap[lowerName]) {
-      setNameMap(prev => ({
-        ...prev,
-        [lowerName]: newDebt.name
-      }));
+    if (!newDebt.personName || !newDebt.amount) {
+      toast.error("Person name and amount are required");
+      return;
     }
 
-    // Use the stored display name if it exists
-    const displayName = nameMap[lowerName] || newDebt.name;
-    
-    setDebts([...debts, { ...newDebt, name: displayName, timestamp: new Date() }]);
-    setNewDebt({ name: "", amount: "" });
+    try {
+      const response = await createDebt({
+        personName: newDebt.personName,
+        amount: parseFloat(newDebt.amount),
+      });
+
+      if (response.success) {
+        toast.success("Transaction added successfully");
+        setNewDebt({ personName: "", amount: "" });
+        fetchDebtSummary();
+      } else {
+        toast.error(response.error || "Failed to add transaction");
+      }
+    } catch (error) {
+      console.error("Error creating debt:", error);
+      toast.error("An error occurred while adding the transaction");
+    }
+  };
+
+  // Handle debt deletion
+  const handleDeleteDebt = async (id) => {
+    try {
+      const response = await deleteDebt(id);
+      if (response.success) {
+        toast.success("Transaction deleted successfully");
+        fetchDebtSummary();
+      } else {
+        toast.error(response.error || "Failed to delete transaction");
+      }
+    } catch (error) {
+      console.error("Error deleting debt:", error);
+      toast.error("An error occurred while deleting the transaction");
+    }
   };
 
   return (
@@ -71,9 +103,9 @@ export default function BorrowLandingPage() {
             <div className="flex flex-col md:flex-row gap-4">
               <Input
                 placeholder="Person's name"
-                value={newDebt.name}
+                value={newDebt.personName}
                 onChange={(e) =>
-                  setNewDebt({ ...newDebt, name: e.target.value })
+                  setNewDebt({ ...newDebt, personName: e.target.value })
                 }
                 className="flex-1"
               />
@@ -91,7 +123,7 @@ export default function BorrowLandingPage() {
                   type="button"
                   variant={newDebt.amount >= 0 ? "default" : "ghost"}
                   onClick={() =>
-                    setNewDebt({ ...newDebt, amount: Math.abs(newDebt.amount) })
+                    setNewDebt({ ...newDebt, amount: Math.abs(newDebt.amount || 0) })
                   }
                   className="w-12"
                   title="You owe them"
@@ -102,7 +134,7 @@ export default function BorrowLandingPage() {
                   type="button"
                   variant={newDebt.amount < 0 ? "default" : "ghost"}
                   onClick={() =>
-                    setNewDebt({ ...newDebt, amount: -Math.abs(newDebt.amount) })
+                    setNewDebt({ ...newDebt, amount: -Math.abs(newDebt.amount || 0) })
                   }
                   className="w-12"
                   title="They owe you"
@@ -110,7 +142,7 @@ export default function BorrowLandingPage() {
                   <Minus className="w-4 h-4" />
                 </Button>
               </div>
-              <Button type="submit">Add</Button>
+              <Button type="submit" disabled={loading}>Add</Button>
             </div>
           </form>
         </CardContent>
@@ -118,29 +150,32 @@ export default function BorrowLandingPage() {
 
       {/* Debts Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Object.entries(groupedDebts).map(([lowerName, { total, displayName }]) => (
-          <Card key={lowerName} className={total > 0 ? "border-green-200" : "border-red-200"}>
+        {debtSummary.map((item) => (
+          <Card 
+            key={item.displayName} 
+            className={item.total < 0 ? "border-green-200" : "border-red-200"}
+          >
             <CardContent className="pt-6">
               <div className="flex justify-between items-center">
                 <div>
-                  {total > 0 ? (
+                  {item.total < 0 ? (
                     <>
-                      <h3 className="text-lg font-semibold">{displayName}</h3>
+                      <h3 className="text-lg font-semibold">{item.displayName}</h3>
                       <p className="text-sm text-muted-foreground">Owes you</p>
                     </>
                   ) : (
                     <>
                       <p className="text-sm text-muted-foreground">You owe</p>
-                      <h3 className="text-lg font-semibold">{displayName}</h3>
+                      <h3 className="text-lg font-semibold">{item.displayName}</h3>
                     </>
                   )}
                 </div>
                 <p
                   className={`text-xl font-bold ${
-                    total > 0 ? "text-green-500" : "text-red-500"
+                    item.total < 0 ? "text-green-500" : "text-red-500"
                   }`}
                 >
-                  ₹{Math.abs(total).toFixed(2)}
+                  ₹{Math.abs(item.total).toFixed(2)}
                 </p>
               </div>
             </CardContent>
@@ -149,33 +184,45 @@ export default function BorrowLandingPage() {
       </div>
 
       {/* Transaction History */}
-      {debts.length > 0 && (
+      {debtSummary.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Transaction History</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {debts.map((debt, index) => (
-                <div
-                  key={index}
-                  className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                >
-                  <div>
-                    <p className="font-medium">{debt.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(debt.timestamp).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <p
-                    className={`font-semibold ${
-                      debt.amount < 0 ? "text-green-500" : "text-red-500"
-                    }`}
+              {debtSummary.flatMap(person => 
+                person.transactions.map(transaction => (
+                  <div
+                    key={transaction.id}
+                    className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
                   >
-                    {debt.amount >= 0 ? "+" : "-"}₹{Math.abs(debt.amount)}
-                  </p>
-                </div>
-              ))}
+                    <div>
+                      <p className="font-medium">{person.displayName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(transaction.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p
+                        className={`font-semibold ${
+                          transaction.amount > 0 ? "text-red-500" : "text-green-500"
+                        }`}
+                      >
+                        {transaction.amount >= 0 ? "+" : "-"}₹{Math.abs(transaction.amount)}
+                      </p>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleDeleteDebt(transaction.id)}
+                        title="Delete transaction"
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
