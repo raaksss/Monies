@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Minus, UserPlus, Trash2, Edit2, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { createDebt, getDebtSummary, deleteDebt, updateDebt } from "@/actions/debts";
 import { toast } from "sonner";
-import dynamic from "next/dynamic";
+
 import {
   Select,
   SelectContent,
@@ -16,12 +16,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Dynamically import Dialog components with no SSR
-const Dialog = dynamic(() => import("@/components/ui/dialog").then(mod => mod.Dialog), { ssr: false });
-const DialogContent = dynamic(() => import("@/components/ui/dialog").then(mod => mod.DialogContent), { ssr: false });
-const DialogHeader = dynamic(() => import("@/components/ui/dialog").then(mod => mod.DialogHeader), { ssr: false });
-const DialogTitle = dynamic(() => import("@/components/ui/dialog").then(mod => mod.DialogTitle), { ssr: false });
-const DialogFooter = dynamic(() => import("@/components/ui/dialog").then(mod => mod.DialogFooter), { ssr: false });
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter
+} from "@/components/ui/dialog"
+
 
 const ITEMS_PER_PAGE = 5;
 
@@ -267,28 +271,36 @@ export default function BorrowLandingPage() {
                   }
                   className="w-32"
                 />
-                <Button
-                  type="button"
-                  variant={newDebt.amount >= 0 ? "default" : "ghost"}
-                  onClick={() =>
-                    setNewDebt({ ...newDebt, amount: Math.abs(newDebt.amount || 0) })
-                  }
-                  className="w-12"
-                  title="You owe them"
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant={newDebt.amount < 0 ? "default" : "ghost"}
-                  onClick={() =>
-                    setNewDebt({ ...newDebt, amount: -Math.abs(newDebt.amount || 0) })
-                  }
-                  className="w-12"
-                  title="They owe you"
-                >
-                  <Minus className="w-4 h-4" />
-                </Button>
+                <div className="relative group">
+                  <Button
+                    type="button"
+                    variant={newDebt.amount >= 0 ? "default" : "ghost"}
+                    onClick={() =>
+                      setNewDebt({ ...newDebt, amount: Math.abs(newDebt.amount || 0) })
+                    }
+                    className="w-12"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+                    You owe them
+                  </div>
+                </div>
+                <div className="relative group">
+                  <Button
+                    type="button"
+                    variant={newDebt.amount < 0 ? "default" : "ghost"}
+                    onClick={() =>
+                      setNewDebt({ ...newDebt, amount: -Math.abs(newDebt.amount || 0) })
+                    }
+                    className="w-12"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </Button>
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+                    They owe you
+                  </div>
+                </div>
               </div>
               <Button type="submit" disabled={loading}>Add</Button>
             </div>
@@ -512,34 +524,42 @@ export default function BorrowLandingPage() {
                         setEditingDebt({ ...editingDebt, amount: e.target.value })
                       }
                     />
-                    <Button
-                      type="button"
-                      variant={editingDebt?.amount >= 0 ? "default" : "ghost"}
-                      onClick={() =>
-                        setEditingDebt({ 
-                          ...editingDebt, 
-                          amount: Math.abs(parseFloat(editingDebt?.amount || 0)).toString() 
-                        })
-                      }
-                      className="w-12"
-                      title="You owe them"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={editingDebt?.amount < 0 ? "default" : "ghost"}
-                      onClick={() =>
-                        setEditingDebt({ 
-                          ...editingDebt, 
-                          amount: (-Math.abs(parseFloat(editingDebt?.amount || 0))).toString() 
-                        })
-                      }
-                      className="w-12"
-                      title="They owe you"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </Button>
+                    <div className="relative group">
+                      <Button
+                        type="button"
+                        variant={editingDebt?.amount >= 0 ? "default" : "ghost"}
+                        onClick={() =>
+                          setEditingDebt({ 
+                            ...editingDebt, 
+                            amount: Math.abs(parseFloat(editingDebt?.amount || 0)).toString() 
+                          })
+                        }
+                        className="w-12"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+                        You owe them
+                      </div>
+                    </div>
+                    <div className="relative group">
+                      <Button
+                        type="button"
+                        variant={editingDebt?.amount < 0 ? "default" : "ghost"}
+                        onClick={() =>
+                          setEditingDebt({ 
+                            ...editingDebt, 
+                            amount: (-Math.abs(parseFloat(editingDebt?.amount || 0))).toString() 
+                          })
+                        }
+                        className="w-12"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+                        They owe you
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
