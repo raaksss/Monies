@@ -19,7 +19,6 @@ export function VoiceInput({ onVoiceInput }) {
     processingRef.current = true;
     setIsProcessing(true);
     try {
-      console.log("Processing raw text:", text);
       const words = text.toLowerCase().split(' ');
       
       // Default values
@@ -41,27 +40,23 @@ export function VoiceInput({ onVoiceInput }) {
         }
       }
 
-      // Process amount - More flexible pattern matching
       for (let i = 0; i < words.length; i++) {
-        // Try to parse current word as number
         const num = parseFloat(words[i].replace(/,/g, ''));
         if (!isNaN(num)) {
-          // Check if next word indicates currency
           if (i < words.length - 1 && 
-              (words[i + 1].includes("rupee") || // matches "rupee", "rupees"
+              (words[i + 1].includes("rupee") || 
                words[i + 1] === "rs" || 
                words[i + 1].startsWith("₹"))) {
             amount = num;
             break;
           }
-          // If no currency indicator but it's a number after "of" or before "for"
+
           else if ((i > 0 && words[i - 1] === "of") || 
                    (i < words.length - 1 && words[i + 1] === "for")) {
             amount = num;
             break;
           }
         }
-        // Check if the word starts with ₹ or rs
         else if (words[i].startsWith("₹") || words[i].startsWith("rupees")) {
           const numStr = words[i].replace(/[₹rs]/gi, '').replace(/,/g, '');
           const parsedNum = parseFloat(numStr);
@@ -71,8 +66,6 @@ export function VoiceInput({ onVoiceInput }) {
           }
         }
       }
-
-      // If still no amount found, try to find any number in the text
       if (amount === 0) {
         for (const word of words) {
           const num = parseFloat(word.replace(/,/g, ''));
@@ -104,15 +97,13 @@ export function VoiceInput({ onVoiceInput }) {
         "rent": "housing",
       };
 
-      // Look for category after "category" word or directly in the text
       const categoryIndex = words.indexOf("category");
       if (categoryIndex !== -1 && categoryIndex < words.length - 1) {
         const potentialCategory = words[categoryIndex + 1];
         if (commonCategories[potentialCategory]) {
           category = commonCategories[potentialCategory];
         }
-      } else {
-        // If no explicit "category" word, look for category words directly
+
         for (const [key, value] of Object.entries(commonCategories)) {
           if (words.includes(key)) {
             category = value;
@@ -128,30 +119,22 @@ export function VoiceInput({ onVoiceInput }) {
         date = new Date(Date.now() + 86400000);
       }
 
-      // Extract description
-      // Try different patterns for description
       let descriptionWords = [];
-      
-      // Pattern 1: "for [description]"
+
       const forIndex = words.indexOf("for");
       if (forIndex !== -1) {
         descriptionWords = words.slice(forIndex + 1);
       }
       
-      // Pattern 2: "from [description]"
       const fromIndex = words.indexOf("from");
       if (fromIndex !== -1) {
         descriptionWords = words.slice(fromIndex + 1);
       }
-      
-      // Remove common words from description
+
       description = descriptionWords
         .filter(word => !["rupees", "rs", "category", "yesterday", "tomorrow", "today"].includes(word))
         .join(" ");
-
-      // Clean up description
       if (description) {
-        // Capitalize first letter of each word
         description = description
           .split(' ')
           .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -166,7 +149,6 @@ export function VoiceInput({ onVoiceInput }) {
         date,
       };
 
-      console.log("Processed transaction:", transaction);
       onVoiceInput(transaction);
       toast.success("Voice input processed successfully!");
     } catch (error) {
@@ -207,9 +189,6 @@ export function VoiceInput({ onVoiceInput }) {
             interimTranscript += transcript;
           }
         }
-
-        console.log("Interim transcript:", interimTranscript);
-        console.log("Final transcript:", finalTranscript);
 
         if (finalTranscript) {
           setFinalTranscript(finalTranscript);
@@ -258,10 +237,8 @@ export function VoiceInput({ onVoiceInput }) {
     }
 
     if (isListening) {
-      console.log("Stopping recognition");
       recognitionRef.current.stop();
     } else {
-      console.log("Starting recognition");
       setTranscript("");
       setFinalTranscript("");
       try {
