@@ -14,6 +14,55 @@ const serializeAmount = (obj) => ({
   amount: obj.amount.toNumber(),
 });
 
+async function findSimilarTransactionCategory(transaction, userId) {
+  // First try to match by merchant name if available
+  if (transaction.merchantName) {
+    const merchantMatch = await db.transaction.findFirst({
+      where: {
+        userId: userId,
+        merchantName: {
+          equals: transaction.merchantName,
+          mode: 'insensitive'
+        }
+      },
+      orderBy: {
+        date: 'desc'
+      },
+      select: {
+        category: true
+      }
+    });
+
+    if (merchantMatch) {
+      return merchantMatch.category;
+    }
+  }
+
+  // If no merchant match, try to match by description and similar amount
+  const amountThreshold = transaction.amount * 0.1; // 10% threshold for amount similarity
+  const similarTransaction = await db.transaction.findFirst({
+    where: {
+      userId: userId,
+      description: {
+        contains: transaction.description,
+        mode: 'insensitive'
+      },
+      amount: {
+        gte: transaction.amount - amountThreshold,
+        lte: transaction.amount + amountThreshold
+      }
+    },
+    orderBy: {
+      date: 'desc'
+    },
+    select: {
+      category: true
+    }
+  });
+
+  return similarTransaction?.category || null;
+}
+
 // Create Transaction
 export async function createTransaction(data) {
   try {
@@ -63,6 +112,12 @@ export async function createTransaction(data) {
 
     if (!account) {
       throw new Error("Account not found");
+    }
+
+    // Check for similar transactions and their categories
+    const previousCategory = await findSimilarTransactionCategory(data, user.id);
+    if (previousCategory) {
+      data.category = previousCategory;
     }
 
     // Calculate new balance
@@ -123,16 +178,22 @@ export async function createBulkTransactions(transactions) {
     }
     
     let newBalance = Number(account.balance);
-    transactions.forEach((transaction) => {
-      const balanceChange =
-        transaction.type === "EXPENSE" ? -transaction.amount : +transaction.amount;
-      newBalance += balanceChange;
-    });
-   
+
+    // Check for similar transactions for each transaction in the bulk
+    const enhancedTransactions = await Promise.all(
+      transactions.map(async (transaction) => {
+        const previousCategory = await findSimilarTransactionCategory(transaction, user.id);
+        return {
+          ...transaction,
+          category: previousCategory || transaction.category
+        };
+      })
+    );
+
     // Create transactions and update account balances in a single database transaction
     const newTransactions = await db.$transaction(async (tx) => {
       const createdTransactions = await tx.transaction.createMany({
-        data: transactions.map((transaction) => ({
+        data: enhancedTransactions.map((transaction) => ({
           ...transaction,
           userId: user.id,
           nextRecurringDate:
