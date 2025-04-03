@@ -235,62 +235,36 @@ export async function updateDebt(id, data) {
 export async function createGroup(groupData) {
   try {
     const userId = await getUserId();
+    console.log("Creating group with data:", groupData); // Debug log
 
-    // Validate input
-    if (!groupData.name) {
-      throw new Error("Group name is required");
-    }
-    if (!groupData.members || groupData.members.length < 2) {
-      throw new Error("At least 2 members are required");
+    // Check if db is defined
+    if (!db) {
+      throw new Error("Database connection not initialized");
     }
 
-    // Create the group and its members in a transaction
-    const group = await db.$transaction(async (tx) => {
-      // Create the group
-      const newGroup = await tx.group.create({
-        data: {
-          name: groupData.name,
-          description: groupData.description,
-          createdById: userId,
-        },
-      });
-
-      // Add members to the group
-      const memberPromises = groupData.members.map((member) =>
-        tx.groupMember.create({
-          data: {
+    // Create the group
+    const group = await db.group.create({
+      data: {
+        name: groupData.name,
+        description: groupData.description || "",
+        createdById: userId,
+        members: {
+          create: groupData.members.map(member => ({
             name: member.name,
-            userId: userId, // Set current user as the member if it's their name
-            groupId: newGroup.id,
-          },
-        })
-      );
-
-      await Promise.all(memberPromises);
-
-      // Return the created group with members
-      return tx.group.findUnique({
-        where: { id: newGroup.id },
-        include: {
-          members: true,
-          expenses: {
-            include: {
-              paidBy: true,
-              splits: {
-                include: {
-                  member: true,
-                },
-              },
-            },
-          },
-        },
-      });
+            userId: userId
+          }))
+        }
+      },
+      include: {
+        members: true
+      }
     });
 
+    console.log("Created group:", group); // Debug log
     revalidatePath("/borrow");
     return { success: true, group };
   } catch (error) {
-    console.error("Error creating group:", error);
+    console.error("Error in createGroup:", error);
     return { success: false, error: error.message };
   }
 }

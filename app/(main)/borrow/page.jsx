@@ -336,6 +336,25 @@ export default function BorrowLandingPage() {
     return settlements;
   };
 
+  useEffect(() => {
+    fetchGroups();
+  }, []);
+  
+  // Add this function to fetch groups
+  const fetchGroups = async () => {
+    try {
+      const response = await getGroups();
+      if (response.success) {
+        setGroups(response.groups);
+      } else {
+        toast.error(response.error || "Failed to fetch groups");
+      }
+    } catch (error) {
+      console.error("Error fetching groups:", error);
+      toast.error("An error occurred while fetching groups");
+    }
+  };
+  
   // First, add this helper function to recalculate balances when a settlement is deleted
   const deleteSettlement = (settlement, group) => {
     // Create updated members array with adjusted balances
@@ -366,9 +385,6 @@ export default function BorrowLandingPage() {
 
     return updatedGroup;
   };
-
-
-  
 
   return (
     <div className="container mx-auto space-y-6">
@@ -909,8 +925,7 @@ export default function BorrowLandingPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={async (e) => {
-            e.preventDefault();
-            
+            e.preventDefault()
             // Validate form data
             if (!newGroup.name.trim()) {
               toast.error("Group name is required");
@@ -930,9 +945,7 @@ export default function BorrowLandingPage() {
                   name: member.name.trim()
                 }))
               };
-
-              console.log("Sending group data:", groupData); // Debug log
-
+              console.log("Sending group data:", groupData); 
               const response = await createGroup(groupData);
 
               if (response.success) {
