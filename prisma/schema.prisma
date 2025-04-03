@@ -18,6 +18,8 @@ model User {
   accounts      Account[]
   budgets       Budget[]
   debts         Debt[]    // Add relation to debts
+  groups        Group[]        // Add this field
+  groupMemberships GroupMember[]  // Add this field
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -91,6 +93,72 @@ model Debt {
   @@index([userId])
   @@index([personName]) // Index for faster lookups by person name
   @@map("debts")
+}
+
+model Group {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  createdById String        // User who created the group
+  createdBy   User          @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  expenses    GroupExpense[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([createdById])
+  @@map("groups")
+}
+
+model GroupMember {
+  id        String   @id @default(uuid())
+  userId    String   // Reference to User if they are registered
+  name      String   // Name of the member (used even if they're not registered)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expenses  GroupExpense[] @relation("PaidBy")
+  splits    ExpenseSplit[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([groupId])
+  @@map("group_members")
+}
+
+model GroupExpense {
+  id          String         @id @default(uuid())
+  description String
+  amount      Decimal
+  groupId     String
+  group       Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  paidById    String
+  paidBy      GroupMember    @relation("PaidBy", fields: [paidById], references: [id], onDelete: Cascade)
+  splits      ExpenseSplit[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([groupId])
+  @@index([paidById])
+  @@map("group_expenses")
+}
+
+model ExpenseSplit {
+  id          String      @id @default(uuid())
+  amount      Decimal
+  expenseId   String
+  expense     GroupExpense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  memberId    String
+  member      GroupMember  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  isSettled   Boolean     @default(false)
+  settledAt   DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([expenseId])
+  @@index([memberId])
+  @@map("expense_splits")
 }
 
 enum TransactionType {

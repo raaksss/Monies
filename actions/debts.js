@@ -228,3 +228,200 @@ export async function updateDebt(id, data) {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Create a new group
+ */
+export async function createGroup(groupData) {
+  try {
+    const userId = await getUserId();
+
+    // Validate input
+    if (!groupData.name) {
+      throw new Error("Group name is required");
+    }
+    if (!groupData.members || groupData.members.length < 2) {
+      throw new Error("At least 2 members are required");
+    }
+
+    // Create the group and its members in a transaction
+    const group = await db.$transaction(async (tx) => {
+      // Create the group
+      const newGroup = await tx.group.create({
+        data: {
+          name: groupData.name,
+          description: groupData.description,
+          createdById: userId,
+        },
+      });
+
+      // Add members to the group
+      const memberPromises = groupData.members.map((member) =>
+        tx.groupMember.create({
+          data: {
+            name: member.name,
+            userId: userId, // Set current user as the member if it's their name
+            groupId: newGroup.id,
+          },
+        })
+      );
+
+      await Promise.all(memberPromises);
+
+      // Return the created group with members
+      return tx.group.findUnique({
+        where: { id: newGroup.id },
+        include: {
+          members: true,
+          expenses: {
+            include: {
+              paidBy: true,
+              splits: {
+                include: {
+                  member: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+
+    revalidatePath("/borrow");
+    return { success: true, group };
+  } catch (error) {
+    console.error("Error creating group:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get all groups for the current user
+ */
+export async function getGroups() {
+  try {
+    const userId = await getUserId();
+
+    const groups = await db.group.findMany({
+      where: {
+        OR: [
+          { createdById: userId },
+          { members: { some: { userId } } },
+        ],
+      },
+      include: {
+        members: true,
+        expenses: {
+          include: {
+            paidBy: true,
+            splits: {
+              include: {
+                member: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return { success: true, groups };
+  } catch (error) {
+    console.error("Error fetching groups:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Add an expense to a group
+ */
+export async function addGroupExpense(groupId, expenseData) {
+  try {
+    const userId = await getUserId();
+
+    // Validate input
+    if (!expenseData.description || !expenseData.amount) {
+      throw new Error("Description and amount are required");
+    }
+    if (!expenseData.paidBy) {
+      throw new Error("Paid by member is required");
+    }
+
+    // Create the expense and splits in a transaction
+    const expense = await db.$transaction(async (tx) => {
+      // Create the expense
+      const newExpense = await tx.groupExpense.create({
+        data: {
+          description: expenseData.description,
+          amount: expenseData.amount,
+          groupId: groupId,
+          paidById: expenseData.paidBy,
+        },
+      });
+
+      // Create splits
+      const splitPromises = expenseData.splits.map((split) =>
+        tx.expenseSplit.create({
+          data: {
+            amount: split.amount,
+            expenseId: newExpense.id,
+            memberId: split.memberId,
+          },
+        })
+      );
+
+      await Promise.all(splitPromises);
+
+      // Return the created expense with all relations
+      return tx.groupExpense.findUnique({
+        where: { id: newExpense.id },
+        include: {
+          paidBy: true,
+          splits: {
+            include: {
+              member: true,
+            },
+          },
+        },
+      });
+    });
+
+    revalidatePath("/borrow");
+    return { success: true, expense };
+  } catch (error) {
+    console.error("Error adding expense:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Mark a split as settled
+ */
+export async function settleSplit(splitId) {
+  try {
+    const userId = await getUserId();
+
+    const updatedSplit = await db.expenseSplit.update({
+      where: { id: splitId },
+      data: {
+        isSettled: true,
+        settledAt: new Date(),
+      },
+      include: {
+        member: true,
+        expense: {
+          include: {
+            paidBy: true,
+          },
+        },
+      },
+    });
+
+    revalidatePath("/borrow");
+    return { success: true, split: updatedSplit };
+  } catch (error) {
+    console.error("Error settling split:", error);
+    return { success: false, error: error.message };
+  }
+}
+
