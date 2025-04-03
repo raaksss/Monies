@@ -14,42 +14,15 @@ const serializeAmount = (obj) => ({
   amount: obj.amount.toNumber(),
 });
 
-async function findSimilarTransactionCategory(transaction, userId) {
-  // First try to match by merchant name if available
-  if (transaction.merchantName) {
-    const merchantMatch = await db.transaction.findFirst({
-      where: {
-        userId: userId,
-        merchantName: {
-          equals: transaction.merchantName,
-          mode: 'insensitive'
-        }
-      },
-      orderBy: {
-        date: 'desc'
-      },
-      select: {
-        category: true
-      }
-    });
-
-    if (merchantMatch) {
-      return merchantMatch.category;
-    }
-  }
-
-  // If no merchant match, try to match by description and similar amount
-  const amountThreshold = transaction.amount * 0.1; // 10% threshold for amount similarity
+async function findSimilarTransactionCategory(description, userId) {
+  // Look for the most recent transaction with a similar description
+  // Using a simple case-insensitive contains match
   const similarTransaction = await db.transaction.findFirst({
     where: {
       userId: userId,
       description: {
-        contains: transaction.description,
+        contains: description,
         mode: 'insensitive'
-      },
-      amount: {
-        gte: transaction.amount - amountThreshold,
-        lte: transaction.amount + amountThreshold
       }
     },
     orderBy: {
@@ -115,7 +88,7 @@ export async function createTransaction(data) {
     }
 
     // Check for similar transactions and their categories
-    const previousCategory = await findSimilarTransactionCategory(data, user.id);
+    const previousCategory = await findSimilarTransactionCategory(data.description, user.id);
     if (previousCategory) {
       data.category = previousCategory;
     }
@@ -182,7 +155,7 @@ export async function createBulkTransactions(transactions) {
     // Check for similar transactions for each transaction in the bulk
     const enhancedTransactions = await Promise.all(
       transactions.map(async (transaction) => {
-        const previousCategory = await findSimilarTransactionCategory(transaction, user.id);
+        const previousCategory = await findSimilarTransactionCategory(transaction.description, user.id);
         return {
           ...transaction,
           category: previousCategory || transaction.category
