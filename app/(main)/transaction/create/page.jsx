@@ -26,6 +26,8 @@ export default async function AddTransactionPage({ searchParams }) {
         editMode={!!editId}
         initialData={initialData}
       />
+      <div className="py-2"></div>
     </div>
+    
   );
 }

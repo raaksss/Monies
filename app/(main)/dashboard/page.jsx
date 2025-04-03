@@ -52,6 +52,9 @@ export default async function DashboardPage() {
             <AccountCard key={account.id} account={account} />
           ))}
       </div>
+      <div className="py-2">
+
+      </div>
     </div>
   );
 }
