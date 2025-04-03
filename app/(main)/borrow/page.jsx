@@ -259,14 +259,16 @@ export default function BorrowLandingPage() {
     }
   };
 
-  // Add this helper function at the top level
+  // First, let's modify the calculateSplits function to ensure it always returns properly formatted data
   const calculateSplits = (amount, splitType, splits, members) => {
+    if (!amount || !members?.length) return [];
+
     if (splitType === "equal") {
-      const equalShare = amount / members.length;
+      const equalShare = parseFloat(amount) / members.length;
       return members.map(member => ({
         id: member.id,
         name: member.name,
-        amount: equalShare
+        amount: parseFloat(equalShare.toFixed(2)) // Round to 2 decimal places
       }));
     }
 
@@ -274,7 +276,7 @@ export default function BorrowLandingPage() {
       return splits.map(split => ({
         id: split.id,
         name: members.find(m => m.id === split.id)?.name,
-        amount: (amount * parseFloat(split.value)) / 100
+        amount: parseFloat(((parseFloat(amount) * parseFloat(split.value)) / 100).toFixed(2))
       }));
     }
 
@@ -282,7 +284,7 @@ export default function BorrowLandingPage() {
     return splits.map(split => ({
       id: split.id,
       name: members.find(m => m.id === split.id)?.name,
-      amount: parseFloat(split.value)
+      amount: parseFloat(parseFloat(split.value).toFixed(2))
     }));
   };
 
@@ -1044,23 +1046,42 @@ export default function BorrowLandingPage() {
           </DialogHeader>
           <form onSubmit={async (e) => {
             e.preventDefault();
-            
             try {
-              const response = await addGroupExpense(activeGroup.id, {
+              // Validate required fields
+              if (!newExpense.description || !newExpense.amount || !newExpense.paidBy) {
+                toast.error("Please fill in all required fields");
+                return;
+              }
+
+              // Calculate splits before making the request
+              const calculatedSplits = calculateSplits(
+                parseFloat(newExpense.amount),
+                newExpense.splitType,
+                newExpense.splits,
+                activeGroup.members
+              );
+
+              // Validate that splits were calculated
+              if (!calculatedSplits.length) {
+                toast.error("Failed to calculate splits");
+                return;
+              }
+
+              const expenseData = {
                 description: newExpense.description,
                 amount: parseFloat(newExpense.amount),
                 paidBy: newExpense.paidBy,
-                splits: calculateSplits(
-                  parseFloat(newExpense.amount),
-                  newExpense.splitType,
-                  newExpense.splits,
-                  activeGroup.members
-                )
-              });
+                splits: calculatedSplits
+              };
+
+              console.log("Sending expense data:", expenseData);
+
+              const response = await addGroupExpense(activeGroup.id, expenseData);
 
               if (response.success) {
                 toast.success("Expense added successfully!");
-                fetchGroups(); // Refresh groups to get updated data
+                fetchGroups();
+                console.log("Response:", response);
                 setNewExpense({
                   description: "",
                   amount: "",

@@ -276,7 +276,7 @@ export async function getGroups() {
   try {
     const userId = await getUserId();
 
-    const groups = await db.group.findMany({
+    const rawGroups = await db.group.findMany({
       where: {
         OR: [
           { createdById: userId },
@@ -299,6 +299,47 @@ export async function getGroups() {
       orderBy: { createdAt: "desc" },
     });
 
+    // Serialize the groups data with proper formatting
+    const groups = rawGroups.map(group => ({
+      id: group.id,
+      name: group.name,
+      description: group.description,
+      createdAt: group.createdAt.toISOString(),
+      updatedAt: group.updatedAt.toISOString(),
+      createdById: group.createdById,
+      members: group.members.map(member => ({
+        id: member.id,
+        name: member.name,
+        userId: member.userId,
+        balance: member.balance ? Number(member.balance) : 0,
+      })),
+      expenses: group.expenses.map(expense => ({
+        id: expense.id,
+        description: expense.description,
+        amount: Number(expense.amount),
+        groupId: expense.groupId,
+        paidById: expense.paidById,
+        createdAt: expense.createdAt.toISOString(),
+        updatedAt: expense.updatedAt.toISOString(),
+        paidBy: expense.paidBy.id,
+        paidByName: expense.paidBy.name,
+        splits: expense.splits.map(split => ({
+          id: split.id,
+          amount: Number(split.amount),
+          expenseId: split.expenseId,
+          memberId: split.memberId,
+          isSettled: split.isSettled,
+          settledAt: split.settledAt ? split.settledAt.toISOString() : null,
+          createdAt: split.createdAt.toISOString(),
+          updatedAt: split.updatedAt.toISOString(),
+          member: {
+            id: split.member.id,
+            name: split.member.name
+          }
+        }))
+      }))
+    }));
+
     return { success: true, groups };
   } catch (error) {
     console.error("Error fetching groups:", error);
@@ -306,23 +347,50 @@ export async function getGroups() {
   }
 }
 
+// Add this helper function at the top of the file
+const serializeExpense = (expense) => {
+  if (!expense) return null;
+
+  // First convert the main expense object
+  const serialized = {
+    ...expense,
+    amount: Number(expense.amount), // Direct conversion to Number
+    createdAt: expense.createdAt?.toISOString(), // Safely convert dates
+    updatedAt: expense.updatedAt?.toISOString(),
+    paidBy: expense.paidBy?.id,
+    paidByName: expense.paidBy?.name, // Ensure paidByName is included
+  };
+
+  // Then handle the splits array
+  if (expense.splits) {
+    serialized.splits = expense.splits.map(split => ({
+      id: split.id,
+      amount: Number(split.amount), // Direct conversion to Number
+      expenseId: split.expenseId,
+      memberId: split.memberId,
+      isSettled: split.isSettled,
+      settledAt: split.settledAt?.toISOString(),
+      createdAt: split.createdAt?.toISOString(),
+      updatedAt: split.updatedAt?.toISOString(),
+      member: {
+        id: split.member?.id,
+        name: split.member?.name
+      }
+    }));
+  }
+
+  return serialized;
+};
+
 /**
  * Add an expense to a group
  */
 export async function addGroupExpense(groupId, expenseData) {
   try {
     const userId = await getUserId();
-
-    // Validate input
-    if (!expenseData.description || !expenseData.amount) {
-      throw new Error("Description and amount are required");
-    }
-    if (!expenseData.paidBy) {
-      throw new Error("Paid by member is required");
-    }
-
+    
     // Create the expense and splits in a transaction
-    const expense = await db.$transaction(async (tx) => {
+    const rawExpense = await db.$transaction(async (tx) => {
       // Create the expense
       const newExpense = await tx.groupExpense.create({
         data: {
@@ -339,7 +407,8 @@ export async function addGroupExpense(groupId, expenseData) {
           data: {
             amount: split.amount,
             expenseId: newExpense.id,
-            memberId: split.memberId,
+            memberId: split.id,
+            isSettled: false,
           },
         })
       );
@@ -348,22 +417,61 @@ export async function addGroupExpense(groupId, expenseData) {
 
       // Return the created expense with all relations
       return tx.groupExpense.findUnique({
-        where: { id: newExpense.id },
+        where: { 
+          id: newExpense.id 
+        },
         include: {
-          paidBy: true,
+          paidBy: {
+            select: {
+              id: true,
+              name: true,
+            }
+          },
           splits: {
             include: {
-              member: true,
+              member: {
+                select: {
+                  id: true,
+                  name: true,
+                }
+              },
             },
           },
         },
       });
     });
 
+    // Convert all Decimal values to plain numbers and format the response
+    const expense = {
+      id: rawExpense.id,
+      description: rawExpense.description,
+      amount: Number(rawExpense.amount),
+      groupId: rawExpense.groupId,
+      paidById: rawExpense.paidById,
+      createdAt: rawExpense.createdAt.toISOString(),
+      updatedAt: rawExpense.updatedAt.toISOString(),
+      paidBy: rawExpense.paidBy.id,
+      paidByName: rawExpense.paidBy.name,
+      splits: rawExpense.splits.map(split => ({
+        id: split.id,
+        amount: Number(split.amount),
+        expenseId: split.expenseId,
+        memberId: split.memberId,
+        isSettled: split.isSettled,
+        settledAt: split.settledAt ? split.settledAt.toISOString() : null,
+        createdAt: split.createdAt.toISOString(),
+        updatedAt: split.updatedAt.toISOString(),
+        member: {
+          id: split.member.id,
+          name: split.member.name
+        }
+      }))
+    };
+
     revalidatePath("/borrow");
     return { success: true, expense };
   } catch (error) {
-    console.error("Error adding expense:", error);
+    console.error("Error in addGroupExpense:", error);
     return { success: false, error: error.message };
   }
 }
