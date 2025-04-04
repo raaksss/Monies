@@ -8,7 +8,7 @@ import { Plus, Minus, UserPlus, Trash2, Edit2, Search, Filter, ChevronLeft, Chev
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { createDebt, getDebtSummary, deleteDebt, updateDebt, createGroup, getGroups, addGroupExpense, settleSplit, deleteGroupExpense, updateGroupExpense } from "@/actions/debts";
+import { createDebt, getDebtSummary, deleteDebt, updateDebt, createGroup, getGroups, addGroupExpense, settleSplit, deleteGroupExpense, updateGroupExpense, deleteGroup } from "@/actions/debts";
 
 import {
   Select,
@@ -75,6 +75,10 @@ export default function BorrowLandingPage() {
   // Add these new state variables near your other state declarations (around line 50)
   const [editingExpense, setEditingExpense] = useState(null);
   const [showEditExpenseForm, setShowEditExpenseForm] = useState(false);
+
+  // Add these near your other state declarations
+  const [showEditGroupForm, setShowEditGroupForm] = useState(false);
+  const [editingGroup, setEditingGroup] = useState(null);
 
   // Set mounted state to prevent hydration mismatch
   useEffect(() => {
@@ -780,7 +784,7 @@ export default function BorrowLandingPage() {
               {groups.map((group) => (
                 <Card
                   key={group.id}
-                  className="cursor-pointer hover:border-primary"
+                  className="cursor-pointer hover:border-primary relative"
                   onClick={() => setActiveGroup(group)}
                 >
                   <CardHeader>
@@ -807,6 +811,50 @@ export default function BorrowLandingPage() {
                       )}
                     </div>
                   </CardContent>
+                  {/* Add bottom actions bar */}
+                  <div 
+                    className="absolute bottom-2 right-2 flex gap-2"
+                    onClick={(e) => e.stopPropagation()} // Prevent card click when clicking buttons
+                  >
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setEditingGroup({
+                          ...group,
+                          members: group.members.map(m => ({
+                            id: m.id,
+                            name: m.name
+                          }))
+                        });
+                        setShowEditGroupForm(true);
+                      }}
+                      title="Edit group"
+                    >
+                      <Edit2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={async () => {
+                        if (confirm("Are you sure you want to delete this group? This will delete all expenses and cannot be undone.")) {
+                          const response = await deleteGroup(group.id);
+                          if (response.success) {
+                            toast.success("Group deleted successfully");
+                            await fetchGroups();
+                            if (activeGroup?.id === group.id) {
+                              setActiveGroup(null);
+                            }
+                          } else {
+                            toast.error(response.error || "Failed to delete group");
+                          }
+                        }
+                      }}
+                      title="Delete group"
+                    >
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </div>
                 </Card>
               ))}
             </div>
@@ -1137,6 +1185,135 @@ export default function BorrowLandingPage() {
             </div>
             <DialogFooter>
               <Button type="submit">Create Group</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Group Modal */}
+      <Dialog open={showEditGroupForm} onOpenChange={setShowEditGroupForm}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Group</DialogTitle>
+            <DialogDescription>
+              Update group details and members
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            // Validate form data
+            if (!editingGroup?.name.trim()) {
+              toast.error("Group name is required");
+              return;
+            }
+            if (editingGroup?.members.length < 2) {
+              toast.error("Group must have at least 2 members");
+              return;
+            }
+
+            try {
+              const groupData = {
+                name: editingGroup.name.trim(),
+                description: editingGroup.description || "",
+                members: editingGroup.members.map(member => ({
+                  id: member.id,
+                  name: member.name.trim()
+                }))
+              };
+
+              const response = await updateGroup(editingGroup.id, groupData);
+
+              if (response.success) {
+                toast.success("Group updated successfully!");
+                await fetchGroups();
+                setShowEditGroupForm(false);
+                setEditingGroup(null);
+              } else {
+                toast.error(response.error || "Failed to update group");
+              }
+            } catch (error) {
+              console.error("Error updating group:", error);
+              toast.error("An error occurred while updating the group");
+            }
+          }}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Group Name</label>
+                <Input
+                  placeholder="Enter group name"
+                  value={editingGroup?.name || ""}
+                  onChange={(e) => setEditingGroup({ 
+                    ...editingGroup, 
+                    name: e.target.value 
+                  })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Description</label>
+                <Input
+                  placeholder="Enter group description"
+                  value={editingGroup?.description || ""}
+                  onChange={(e) => setEditingGroup({ 
+                    ...editingGroup, 
+                    description: e.target.value 
+                  })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Add Members</label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter member name"
+                    value={newMember}
+                    onChange={(e) => setNewMember(e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      if (newMember.trim()) {
+                        setEditingGroup({
+                          ...editingGroup,
+                          members: [...(editingGroup?.members || []), 
+                            { 
+                              id: Date.now().toString(), 
+                              name: newMember.trim() 
+                            }
+                          ]
+                        });
+                        setNewMember("");
+                      }
+                    }}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
+
+              {/* Member List */}
+              <div className="space-y-2">
+                {editingGroup?.members.map((member) => (
+                  <div key={member.id} className="flex items-center justify-between p-2 bg-muted rounded">
+                    <span>{member.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setEditingGroup({
+                          ...editingGroup,
+                          members: editingGroup.members.filter(m => m.id !== member.id)
+                        });
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">Save Changes</Button>
             </DialogFooter>
           </form>
         </DialogContent>

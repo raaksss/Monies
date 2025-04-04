@@ -785,3 +785,93 @@ export async function updateGroupExpense(expenseId, expenseData) {
   }
 }
 
+/**
+ * Update a group's details
+ */
+export async function updateGroup(groupId, groupData) {
+  try {
+    const userId = await getUserId();
+
+    // Verify user has permission (only group creator can edit)
+    const group = await db.group.findUnique({
+      where: { id: groupId },
+      include: { members: true }
+    });
+
+    if (!group) {
+      throw new Error("Group not found");
+    }
+
+    if (group.createdById !== userId) {
+      throw new Error("Only the group creator can edit the group");
+    }
+
+    // Update the group in a transaction
+    const updatedGroup = await db.$transaction(async (tx) => {
+      // Delete existing members
+      await tx.groupMember.deleteMany({
+        where: { groupId }
+      });
+
+      // Update the group and create new members
+      const updated = await tx.group.update({
+        where: { id: groupId },
+        data: {
+          name: groupData.name,
+          description: groupData.description || "",
+          members: {
+            create: groupData.members.map(member => ({
+              name: member.name,
+              userId: userId
+            }))
+          }
+        },
+        include: {
+          members: true
+        }
+      });
+
+      return updated;
+    });
+
+    revalidatePath("/borrow");
+    return { success: true, group: updatedGroup };
+  } catch (error) {
+    console.error("Error updating group:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Delete a group and all its expenses
+ */
+export async function deleteGroup(groupId) {
+  try {
+    const userId = await getUserId();
+
+    // Verify user has permission (only group creator can delete)
+    const group = await db.group.findUnique({
+      where: { id: groupId }
+    });
+
+    if (!group) {
+      throw new Error("Group not found");
+    }
+
+    if (group.createdById !== userId) {
+      throw new Error("Only the group creator can delete the group");
+    }
+
+    // Delete the group (this will cascade delete expenses and members)
+    await db.group.delete({
+      where: { id: groupId }
+    });
+
+    revalidatePath("/borrow");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting group:", error);
+    return { success: false, error: error.message };
+  }
+}
+
