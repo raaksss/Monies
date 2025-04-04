@@ -269,6 +269,48 @@ export async function createGroup(groupData) {
   }
 }
 
+// Add these helper functions at the top of the file
+const serializeAmount = (obj) => ({
+  ...obj,
+  amount: obj.amount.toNumber(),
+});
+
+const formatDate = (date) => {
+  if (!date) return null;
+  return new Date(date).toISOString();
+};
+
+const serializeGroup = (group) => ({
+  ...group,
+  createdAt: formatDate(group.createdAt),
+  updatedAt: formatDate(group.updatedAt),
+  members: group.members.map(member => ({
+    ...member,
+    balance: member.balance ? member.balance.toNumber() : 0,
+    createdAt: formatDate(member.createdAt),
+    updatedAt: formatDate(member.updatedAt)
+  })),
+  expenses: group.expenses.map(expense => ({
+    ...expense,
+    amount: expense.amount.toNumber(),
+    createdAt: formatDate(expense.createdAt),
+    updatedAt: formatDate(expense.updatedAt),
+    paidBy: expense.paidBy.id,
+    paidByName: expense.paidBy.name,
+    splits: expense.splits.map(split => ({
+      ...split,
+      amount: split.amount.toNumber(),
+      createdAt: formatDate(split.createdAt),
+      updatedAt: formatDate(split.updatedAt),
+      settledAt: formatDate(split.settledAt),
+      member: {
+        id: split.member.id,
+        name: split.member.name
+      }
+    }))
+  }))
+});
+
 /**
  * Get all groups for the current user
  */
@@ -276,7 +318,7 @@ export async function getGroups() {
   try {
     const userId = await getUserId();
 
-    const rawGroups = await db.group.findMany({
+    const groups = await db.group.findMany({
       where: {
         OR: [
           { createdById: userId },
@@ -299,48 +341,10 @@ export async function getGroups() {
       orderBy: { createdAt: "desc" },
     });
 
-    // Serialize the groups data with proper formatting
-    const groups = rawGroups.map(group => ({
-      id: group.id,
-      name: group.name,
-      description: group.description,
-      createdAt: group.createdAt.toISOString(),
-      updatedAt: group.updatedAt.toISOString(),
-      createdById: group.createdById,
-      members: group.members.map(member => ({
-        id: member.id,
-        name: member.name,
-        userId: member.userId,
-        balance: member.balance ? Number(member.balance) : 0,
-      })),
-      expenses: group.expenses.map(expense => ({
-        id: expense.id,
-        description: expense.description,
-        amount: Number(expense.amount),
-        groupId: expense.groupId,
-        paidById: expense.paidById,
-        createdAt: expense.createdAt.toISOString(),
-        updatedAt: expense.updatedAt.toISOString(),
-        paidBy: expense.paidBy.id,
-        paidByName: expense.paidBy.name,
-        splits: expense.splits.map(split => ({
-          id: split.id,
-          amount: Number(split.amount),
-          expenseId: split.expenseId,
-          memberId: split.memberId,
-          isSettled: split.isSettled,
-          settledAt: split.settledAt ? split.settledAt.toISOString() : null,
-          createdAt: split.createdAt.toISOString(),
-          updatedAt: split.updatedAt.toISOString(),
-          member: {
-            id: split.member.id,
-            name: split.member.name
-          }
-        }))
-      }))
-    }));
+    // Serialize the groups using the helper function
+    const serializedGroups = groups.map(group => serializeGroup(group));
 
-    return { success: true, groups };
+    return { success: true, groups: serializedGroups };
   } catch (error) {
     console.error("Error fetching groups:", error);
     return { success: false, error: error.message };
@@ -448,8 +452,8 @@ export async function addGroupExpense(groupId, expenseData) {
       amount: Number(rawExpense.amount),
       groupId: rawExpense.groupId,
       paidById: rawExpense.paidById,
-      createdAt: rawExpense.createdAt.toISOString(),
-      updatedAt: rawExpense.updatedAt.toISOString(),
+      createdAt: rawExpense.createdAt,  // Keep as Date object
+      updatedAt: rawExpense.updatedAt,  // Keep as Date object
       paidBy: rawExpense.paidBy.id,
       paidByName: rawExpense.paidBy.name,
       splits: rawExpense.splits.map(split => ({
@@ -458,9 +462,9 @@ export async function addGroupExpense(groupId, expenseData) {
         expenseId: split.expenseId,
         memberId: split.memberId,
         isSettled: split.isSettled,
-        settledAt: split.settledAt ? split.settledAt.toISOString() : null,
-        createdAt: split.createdAt.toISOString(),
-        updatedAt: split.updatedAt.toISOString(),
+        settledAt: split.settledAt,
+        createdAt: split.createdAt,
+        updatedAt: split.updatedAt,
         member: {
           id: split.member.id,
           name: split.member.name
@@ -468,8 +472,15 @@ export async function addGroupExpense(groupId, expenseData) {
       }))
     };
 
+    // Revalidate both the borrow page and specific group data
     revalidatePath("/borrow");
-    return { success: true, expense };
+    revalidatePath(`/borrow?groupId=${groupId}`);
+
+    return { 
+      success: true, 
+      expense,
+      message: "Expense added successfully" 
+    };
   } catch (error) {
     console.error("Error in addGroupExpense:", error);
     return { success: false, error: error.message };

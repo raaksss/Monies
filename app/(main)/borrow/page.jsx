@@ -825,7 +825,7 @@ export default function BorrowLandingPage() {
                             <div className="text-right">
                               <p className="font-semibold">₹{expense.amount}</p>
                               <p className="text-sm text-muted-foreground">
-                                {new Date(expense.date).toLocaleDateString()}
+                               
                               </p>
                             </div>
                           </div>
@@ -1071,7 +1071,8 @@ export default function BorrowLandingPage() {
                 description: newExpense.description,
                 amount: parseFloat(newExpense.amount),
                 paidBy: newExpense.paidBy,
-                splits: calculatedSplits
+                splits: calculatedSplits,
+                createdAt: new Date().toISOString(),
               };
 
               console.log("Sending expense data:", expenseData);
@@ -1088,9 +1089,11 @@ export default function BorrowLandingPage() {
                   paidBy: "",
                   paidByName: "",
                   splitType: "equal",
-                  splits: []
+                  splits: [],
+                  createdAt: new Date().toISOString(),
                 });
                 setShowExpenseForm(false);
+                fetchGroups();
               } else {
                 toast.error(response.error || "Failed to add expense");
               }
