@@ -422,6 +422,66 @@ export default function BorrowLandingPage() {
     return updatedGroup;
   };
 
+  // Add this helper function to handle automatic settlements
+  const handleAutoSettlements = async (expenses) => {
+    try {
+      // Create a map of reciprocal splits
+      const reciprocalSplits = new Map();
+
+      // Find reciprocal splits that can be auto-settled
+      expenses.forEach(expense1 => {
+        expense1.splits.forEach(split1 => {
+          if (split1.isSettled) return; // Skip already settled splits
+
+          // Look for reciprocal splits in other expenses
+          expenses.forEach(expense2 => {
+            if (expense1.id === expense2.id) return; // Skip same expense
+
+            expense2.splits.forEach(split2 => {
+              if (split2.isSettled) return; // Skip already settled splits
+
+              // Check if these splits cancel each other out
+              if (
+                split1.memberId === expense2.paidById && // member1 paid expense2
+                split2.memberId === expense1.paidById && // member2 paid expense1
+                Math.abs(split1.amount - split2.amount) < 0.01 // amounts are equal
+              ) {
+                const key = [split1.id, split2.id].sort().join('-');
+                reciprocalSplits.set(key, { split1, split2 });
+              }
+            });
+          });
+        });
+      });
+
+      // Settle all reciprocal splits
+      const settlementPromises = [];
+      for (const { split1, split2 } of reciprocalSplits.values()) {
+        settlementPromises.push(
+          settleSplit(split1.id),
+          settleSplit(split2.id)
+        );
+      }
+
+      if (settlementPromises.length > 0) {
+        const results = await Promise.all(settlementPromises);
+        const allSuccessful = results.every(r => r.success);
+        
+        if (allSuccessful) {
+          return true;
+        } else {
+          console.error("Some automatic settlements failed");
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error in automatic settlements:", error);
+      return false;
+    }
+  };
+
   return (
     <div className="container mx-auto space-y-6">
       <Tabs defaultValue="personal" className="w-full">
@@ -871,16 +931,27 @@ export default function BorrowLandingPage() {
                       <div className="space-y-4">
                         {activeGroup.settlements?.length > 0 ? (
                           activeGroup.settlements.map((settlement, index) => {
-                            // Check if all relevant splits are settled
-                            const isSettled = activeGroup.expenses.every(exp => 
-                              exp.splits.every(split => 
-                                !(split.memberId === settlement.from.id && 
-                                  exp.paidById === settlement.to.id && 
-                                  !split.isSettled)
-                              )
-                            );
+                            // Find all splits between these members
+                            const relevantSplits = [];
+                            activeGroup.expenses.forEach(exp => {
+                              exp.splits.forEach(split => {
+                                if (
+                                  split.memberId === settlement.from.id && 
+                                  exp.paidById === settlement.to.id
+                                ) {
+                                  relevantSplits.push({
+                                    ...split,
+                                    expenseId: exp.id
+                                  });
+                                }
+                              });
+                            });
 
-                            // Don't render if the settlement is already completed
+                            // Check if all relevant splits are settled
+                            const isSettled = relevantSplits.length > 0 && 
+                              relevantSplits.every(split => split.isSettled);
+
+                            // Don't render if all splits are settled
                             if (isSettled) return null;
 
                             return (
@@ -931,8 +1002,7 @@ export default function BorrowLandingPage() {
                                               exp.paidById === settlement.to.id
                                             ) {
                                               relevantSplits.push({
-                                                ...split,
-                                                expenseId: exp.id,
+                                                id: split.id,
                                                 amount: Number(split.amount)
                                               });
                                             }
@@ -944,67 +1014,18 @@ export default function BorrowLandingPage() {
                                           return;
                                         }
 
-                                        // Sort splits by date and settle them until we reach the settlement amount
-                                        let remainingAmount = settlement.amount;
-                                        const splitsToSettle = [];
-
-                                        for (const split of relevantSplits) {
-                                          if (remainingAmount <= 0) break;
-                                          splitsToSettle.push(split.id);
-                                          remainingAmount -= split.amount;
-                                        }
-
                                         // Settle all relevant splits
-                                        const settlePromises = splitsToSettle.map(splitId => 
-                                          settleSplit(splitId)
+                                        const settlePromises = relevantSplits.map(split => 
+                                          settleSplit(split.id)
                                         );
 
                                         const results = await Promise.all(settlePromises);
                                         const allSuccessful = results.every(r => r.success);
 
                                         if (allSuccessful) {
-                                          // Update the active group with new data
-                                          const updatedExpenses = activeGroup.expenses.map(exp => ({
-                                            ...exp,
-                                            splits: exp.splits.map(split => {
-                                              if (splitsToSettle.includes(split.id)) {
-                                                return { ...split, isSettled: true };
-                                              }
-                                              return split;
-                                            })
-                                          }));
-
-                                          // Update member balances
-                                          const updatedMembers = activeGroup.members.map(member => {
-                                            let newBalance = Number(member.balance);
-                                            if (member.id === settlement.from.id) {
-                                              // Person who needs to pay: reduce their negative balance
-                                              newBalance += Number(settlement.amount);
-                                            }
-                                            if (member.id === settlement.to.id) {
-                                              // Person who receives: reduce their positive balance
-                                              newBalance -= Number(settlement.amount);
-                                            }
-                                            return {
-                                              ...member,
-                                              balance: newBalance
-                                            };
-                                          });
-
-                                          // Recalculate settlements based on updated expenses and balances
-                                          const newSettlements = recalculateSettlements(updatedMembers, updatedExpenses);
-
                                           // Show the settlement animation
                                           setFadingSettlements(prev => new Set([...prev, index]));
                                           
-                                          // Update the active group with new data
-                                          setActiveGroup({
-                                            ...activeGroup,
-                                            expenses: updatedExpenses,
-                                            members: updatedMembers,
-                                            settlements: newSettlements
-                                          });
-
                                           // Fetch fresh data after animation
                                           setTimeout(async () => {
                                             await fetchGroups();
@@ -1012,7 +1033,7 @@ export default function BorrowLandingPage() {
                                             toast.success('Settlement completed successfully!');
                                           }, 500);
                                         } else {
-                                          toast.error("Some settlements failed to process");
+                                          toast.error("Failed to process settlement");
                                         }
                                       } catch (error) {
                                         console.error("Error settling:", error);
@@ -1243,8 +1264,18 @@ export default function BorrowLandingPage() {
               const response = await addGroupExpense(activeGroup.id, expenseData);
 
               if (response.success) {
+                // After adding the expense, handle automatic settlements
+                const updatedGroup = await getGroups().then(r => 
+                  r.groups.find(g => g.id === activeGroup.id)
+                );
+                
+                if (updatedGroup) {
+                  // Process automatic settlements
+                  await handleAutoSettlements(updatedGroup.expenses);
+                }
+
                 toast.success("Expense added successfully!");
-                await fetchGroups(); // Wait for the groups to be fetched
+                await fetchGroups(); // Refresh the data
                 setNewExpense({
                   description: "",
                   amount: "",
