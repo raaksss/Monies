@@ -12,6 +12,7 @@ import { useEffect, useState } from "react"
 import { createDebt, getDebtSummary, deleteDebt, updateDebt } from "@/actions/debts"
 
 
+
 const ITEMS_PER_PAGE = 5;
 
 
