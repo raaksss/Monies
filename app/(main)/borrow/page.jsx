@@ -288,83 +288,6 @@ export default function BorrowLandingPage() {
     }));
   };
 
-  // Add this helper function near your other helper functions
-  const calculateSettlements = (members) => {
-    // Create a copy of members with their balances
-    let balances = members.map(member => ({
-      id: member.id,
-      name: member.name,
-      balance: member.balance || 0
-    }));
-
-    // Sort by balance: negative (debtors) first, positive (creditors) last
-    balances.sort((a, b) => a.balance - b.balance);
-
-    let settlements = [];
-    let i = 0; // index for debtors (negative balances)
-    let j = balances.length - 1; // index for creditors (positive balances)
-
-    while (i < j) {
-      const debtor = balances[i];
-      const creditor = balances[j];
-
-      if (Math.abs(debtor.balance) < 0.01 && Math.abs(creditor.balance) < 0.01) {
-        // Skip if balances are effectively zero
-        i++;
-        j--;
-        continue;
-      }
-
-      // Calculate the settlement amount
-      const amount = Math.min(Math.abs(debtor.balance), creditor.balance);
-      
-      if (amount > 0) {
-        settlements.push({
-          from: debtor.name,
-          to: creditor.name,
-          amount: Math.round(amount * 100) / 100 // Round to 2 decimal places
-        });
-      }
-
-      // Update balances
-      debtor.balance += amount;
-      creditor.balance -= amount;
-
-      // Move indices if balances are settled
-      if (Math.abs(debtor.balance) < 0.01) i++;
-      if (Math.abs(creditor.balance) < 0.01) j--;
-    }
-
-    return settlements;
-  };
-
-  // Add this helper function to recalculate settlements
-  const recalculateSettlements = (members, expenses) => {
-    // Calculate current balances for each member
-    const memberBalances = members.map(member => {
-      let balance = 0;
-      expenses.forEach(expense => {
-        // Add amount if they paid
-        if (expense.paidById === member.id) {
-          balance += Number(expense.amount);
-        }
-        // Subtract their splits if not settled
-        expense.splits.forEach(split => {
-          if (split.memberId === member.id && !split.isSettled) {
-            balance -= Number(split.amount);
-          }
-        });
-      });
-      return {
-        ...member,
-        balance
-      };
-    });
-
-    // Calculate settlements based on current balances
-    return calculateSettlements(memberBalances);
-  };
-
   useEffect(() => {
     fetchGroups();
   }, []);
@@ -992,7 +915,7 @@ export default function BorrowLandingPage() {
                                     size="sm"
                                     onClick={async () => {
                                       try {
-                                        // Find all unsettled splits between these members
+                                        // Find only the relevant unsettled splits
                                         const relevantSplits = [];
                                         activeGroup.expenses.forEach(exp => {
                                           exp.splits.forEach(split => {
@@ -1014,18 +937,32 @@ export default function BorrowLandingPage() {
                                           return;
                                         }
 
+                                        // Show loading state
+                                        setFadingSettlements(prev => new Set([...prev, index]));
+
                                         // Settle all relevant splits
-                                        const settlePromises = relevantSplits.map(split => 
-                                          settleSplit(split.id)
+                                        const results = await Promise.all(
+                                          relevantSplits.map(split => settleSplit(split.id))
                                         );
 
-                                        const results = await Promise.all(settlePromises);
-                                        const allSuccessful = results.every(r => r.success);
+                                        if (results.every(r => r.success)) {
+                                          // Update expenses locally
+                                          const updatedExpenses = activeGroup.expenses.map(exp => ({
+                                            ...exp,
+                                            splits: exp.splits.map(split => {
+                                              if (relevantSplits.some(rs => rs.id === split.id)) {
+                                                return { ...split, isSettled: true };
+                                              }
+                                              return split;
+                                            })
+                                          }));
 
-                                        if (allSuccessful) {
-                                          // Show the settlement animation
-                                          setFadingSettlements(prev => new Set([...prev, index]));
-                                          
+                                          // Update active group with new data
+                                          setActiveGroup({
+                                            ...activeGroup,
+                                            expenses: updatedExpenses
+                                          });
+
                                           // Fetch fresh data after animation
                                           setTimeout(async () => {
                                             await fetchGroups();
@@ -1033,10 +970,12 @@ export default function BorrowLandingPage() {
                                             toast.success('Settlement completed successfully!');
                                           }, 500);
                                         } else {
+                                          setFadingSettlements(new Set());
                                           toast.error("Failed to process settlement");
                                         }
                                       } catch (error) {
                                         console.error("Error settling:", error);
+                                        setFadingSettlements(new Set());
                                         toast.error("An error occurred while settling");
                                       }
                                     }}
@@ -1048,49 +987,12 @@ export default function BorrowLandingPage() {
                                 </div>
                               </div>
                             );
-                          }).filter(Boolean) // Remove null entries
+                          }).filter(Boolean)
                         ) : (
                           <div className="text-center py-8 text-muted-foreground">
-                            No settlements needed. All balances are settled.
+                            No settlements pending. All settled.
                           </div>
                         )}
-                      </div>
-
-                      {/* Member Balances section remains unchanged */}
-                      <div className="mt-6 space-y-2">
-                        <h3 className="font-semibold">Member Balances</h3>
-                        <div className="grid gap-2">
-                          {activeGroup.members.map((member) => (
-                            <div
-                              key={member.id}
-                              className="flex justify-between items-center p-2 bg-muted rounded"
-                            >
-                              <div className="flex flex-col">
-                                <span>{member.name}</span>
-                                <span className="text-sm text-muted-foreground">
-                                  {member.balance > 0 
-                                    ? "To receive" 
-                                    : member.balance < 0 
-                                      ? "To pay" 
-                                      : "All settled"}
-                                </span>
-                              </div>
-                              <span 
-                                className={`font-medium ${
-                                  member.balance > 0 
-                                    ? "text-green-500" 
-                                    : member.balance < 0 
-                                      ? "text-red-500" 
-                                      : "text-muted-foreground"
-                                }`}
-                              >
-                                {member.balance === 0 
-                                  ? "₹0.00"
-                                  : `${member.balance > 0 ? "+" : ""}₹${Math.abs(member.balance).toFixed(2)}`}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
                       </div>
                     </TabsContent>
                   </Tabs>
