@@ -661,3 +661,127 @@ const calculateSettlements = (members, balances) => {
   return settlements;
 };
 
+/**
+ * Delete a group expense and its splits
+ */
+export async function deleteGroupExpense(expenseId) {
+  try {
+    const userId = await getUserId();
+
+    // First verify the user has permission to delete this expense
+    const expense = await db.groupExpense.findUnique({
+      where: { id: expenseId },
+      include: {
+        group: {
+          include: {
+            members: true
+          }
+        }
+      }
+    });
+
+    if (!expense) {
+      throw new Error("Expense not found");
+    }
+
+    // Check if user is a member of the group
+    const isGroupMember = expense.group.members.some(
+      member => member.userId === userId
+    );
+
+    if (!isGroupMember) {
+      throw new Error("Unauthorized");
+    }
+
+    // Delete the expense (this will cascade delete the splits due to DB relations)
+    await db.groupExpense.delete({
+      where: { id: expenseId }
+    });
+
+    revalidatePath("/borrow");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting group expense:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Update a group expense and its splits
+ */
+export async function updateGroupExpense(expenseId, expenseData) {
+  try {
+    const userId = await getUserId();
+
+    // Verify user has permission
+    const expense = await db.groupExpense.findUnique({
+      where: { id: expenseId },
+      include: {
+        group: {
+          include: {
+            members: true
+          }
+        },
+        splits: true
+      }
+    });
+
+    if (!expense) {
+      throw new Error("Expense not found");
+    }
+
+    // Check if user is a member of the group
+    const isGroupMember = expense.group.members.some(
+      member => member.userId === userId
+    );
+
+    if (!isGroupMember) {
+      throw new Error("Unauthorized");
+    }
+
+    // Update in a transaction to ensure data consistency
+    const updatedExpense = await db.$transaction(async (tx) => {
+      // Delete existing splits
+      await tx.expenseSplit.deleteMany({
+        where: { expenseId }
+      });
+
+      // Update the expense
+      const updated = await tx.groupExpense.update({
+        where: { id: expenseId },
+        data: {
+          description: expenseData.description,
+          amount: expenseData.amount,
+          paidById: expenseData.paidBy,
+          splits: {
+            create: expenseData.splits.map(split => ({
+              amount: split.amount,
+              memberId: split.id,
+              isSettled: false
+            }))
+          }
+        },
+        include: {
+          paidBy: true,
+          splits: {
+            include: {
+              member: true
+            }
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    revalidatePath("/borrow");
+    return { 
+      success: true, 
+      expense: serializeExpense(updatedExpense)
+    };
+  } catch (error) {
+    console.error("Error updating group expense:", error);
+    return { success: false, error: error.message };
+  }
+}
+

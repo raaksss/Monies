@@ -8,7 +8,7 @@ import { Plus, Minus, UserPlus, Trash2, Edit2, Search, Filter, ChevronLeft, Chev
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { createDebt, getDebtSummary, deleteDebt, updateDebt, createGroup, getGroups, addGroupExpense, settleSplit } from "@/actions/debts";
+import { createDebt, getDebtSummary, deleteDebt, updateDebt, createGroup, getGroups, addGroupExpense, settleSplit, deleteGroupExpense, updateGroupExpense } from "@/actions/debts";
 
 import {
   Select,
@@ -71,6 +71,10 @@ export default function BorrowLandingPage() {
 
   // Add this state near your other states
   const [fadingSettlements, setFadingSettlements] = useState(new Set());
+
+  // Add these new state variables near your other state declarations (around line 50)
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [showEditExpenseForm, setShowEditExpenseForm] = useState(false);
 
   // Set mounted state to prevent hydration mismatch
   useEffect(() => {
@@ -839,11 +843,48 @@ export default function BorrowLandingPage() {
                                 Paid by {expense.paidByName}
                               </p>
                             </div>
-                            <div className="text-right">
-                              <p className="font-semibold">₹{expense.amount}</p>
-                              <p className="text-sm text-muted-foreground">
-                               
-                              </p>
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <p className="font-semibold">₹{expense.amount}</p>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => {
+                                    setEditingExpense({
+                                      ...expense,
+                                      splitType: "exact", // Since we have the exact amounts
+                                      splits: expense.splits.map(split => ({
+                                        id: split.memberId,
+                                        value: split.amount.toString()
+                                      }))
+                                    });
+                                    setShowEditExpenseForm(true);
+                                  }}
+                                  title="Edit expense"
+                                >
+                                  <Edit2 className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={async () => {
+                                    if (confirm("Are you sure you want to delete this expense?")) {
+                                      const response = await deleteGroupExpense(expense.id);
+                                      if (response.success) {
+                                        toast.success("Expense deleted successfully");
+                                        await fetchGroups();
+                                      } else {
+                                        toast.error(response.error || "Failed to delete expense");
+                                      }
+                                    }
+                                  }}
+                                  title="Delete expense"
+                                >
+                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -1268,6 +1309,138 @@ export default function BorrowLandingPage() {
             </div>
             <DialogFooter>
               <Button type="submit">Add Expense</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Expense Modal */}
+      <Dialog open={showEditExpenseForm} onOpenChange={setShowEditExpenseForm}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Expense</DialogTitle>
+            <DialogDescription>
+              Update expense details
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+              if (!editingExpense?.description || !editingExpense?.amount || !editingExpense?.paidBy) {
+                toast.error("Please fill in all required fields");
+                return;
+              }
+
+              const calculatedSplits = calculateSplits(
+                parseFloat(editingExpense.amount),
+                editingExpense.splitType,
+                editingExpense.splits,
+                activeGroup.members
+              );
+
+              if (!calculatedSplits.length) {
+                toast.error("Failed to calculate splits");
+                return;
+              }
+
+              const response = await updateGroupExpense(editingExpense.id, {
+                description: editingExpense.description,
+                amount: parseFloat(editingExpense.amount),
+                paidBy: editingExpense.paidBy,
+                splits: calculatedSplits
+              });
+
+              if (response.success) {
+                toast.success("Expense updated successfully!");
+                await fetchGroups();
+                setShowEditExpenseForm(false);
+                setEditingExpense(null);
+              } else {
+                toast.error(response.error || "Failed to update expense");
+              }
+            } catch (error) {
+              console.error("Error updating expense:", error);
+              toast.error("An error occurred while updating the expense");
+            }
+          }}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Description</label>
+                <Input
+                  placeholder="What was this expense for?"
+                  value={editingExpense?.description || ""}
+                  onChange={(e) => setEditingExpense({ 
+                    ...editingExpense, 
+                    description: e.target.value 
+                  })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Amount</label>
+                <Input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={editingExpense?.amount || ""}
+                  onChange={(e) => setEditingExpense({ 
+                    ...editingExpense, 
+                    amount: e.target.value 
+                  })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Paid By</label>
+                <Select
+                  value={editingExpense?.paidBy || ""}
+                  onValueChange={(value) => {
+                    const selectedMember = activeGroup.members.find(m => m.id === value);
+                    setEditingExpense({
+                      ...editingExpense,
+                      paidBy: value,
+                      paidByName: selectedMember?.name
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Who paid?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeGroup?.members.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Split Details</label>
+                {activeGroup?.members.map((member) => (
+                  <div key={member.id} className="flex items-center gap-2">
+                    <span className="w-1/3">{member.name}</span>
+                    <Input
+                      type="number"
+                      placeholder="Amount"
+                      value={editingExpense?.splits.find(s => s.id === member.id)?.value || ""}
+                      onChange={(e) => {
+                        const newSplits = [...(editingExpense?.splits || [])];
+                        const index = newSplits.findIndex(s => s.id === member.id);
+                        if (index >= 0) {
+                          newSplits[index].value = e.target.value;
+                        } else {
+                          newSplits.push({ id: member.id, value: e.target.value });
+                        }
+                        setEditingExpense({ ...editingExpense, splits: newSplits });
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">Save Changes</Button>
             </DialogFooter>
           </form>
         </DialogContent>
