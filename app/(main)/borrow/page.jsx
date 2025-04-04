@@ -854,32 +854,37 @@ export default function BorrowLandingPage() {
                       <div className="space-y-4">
                         {activeGroup.settlements?.length > 0 ? (
                           activeGroup.settlements.map((settlement, index) => {
-                            // Find all splits between these members
+                            // Find only unsettled splits between these members
                             const relevantSplits = [];
-                            activeGroup.expenses.forEach(exp => {
-                              exp.splits.forEach(split => {
-                                if (
-                                  split.memberId === settlement.from.id && 
-                                  exp.paidById === settlement.to.id
-                                ) {
-                                  relevantSplits.push({
-                                    ...split,
-                                    expenseId: exp.id
-                                  });
-                                }
+                            let totalUnsettledAmount = 0;
+
+                            // First, get all expenses where 'to' member paid
+                            const expensesFromPayer = activeGroup.expenses.filter(exp => 
+                              exp.paidById === settlement.to.id
+                            );
+
+                            // For each expense, check splits for 'from' member
+                            expensesFromPayer.forEach(exp => {
+                              const unsettledSplits = exp.splits.filter(split => 
+                                split.memberId === settlement.from.id && 
+                                !split.isSettled // Only include splits that haven't been settled
+                              );
+
+                              unsettledSplits.forEach(split => {
+                                relevantSplits.push({
+                                  ...split,
+                                  expenseId: exp.id
+                                });
+                                totalUnsettledAmount += Number(split.amount);
                               });
                             });
 
-                            // Check if all relevant splits are settled
-                            const isSettled = relevantSplits.length > 0 && 
-                              relevantSplits.every(split => split.isSettled);
-
-                            // Don't render if all splits are settled
-                            if (isSettled) return null;
+                            // Don't render if there are no unsettled splits or amount is 0
+                            if (relevantSplits.length === 0 || totalUnsettledAmount === 0) return null;
 
                             return (
                               <div
-                                key={`${settlement.from.id}-${settlement.to.id}-${settlement.amount}`}
+                                key={`${settlement.from.id}-${settlement.to.id}-${totalUnsettledAmount}`}
                                 className={`flex items-center justify-between p-4 bg-muted rounded-lg transition-all duration-500 ${
                                   fadingSettlements.has(index) ? 'opacity-0 transform scale-95 h-0 m-0 p-0 overflow-hidden' : 'opacity-100 transform scale-100'
                                 }`}
@@ -896,7 +901,7 @@ export default function BorrowLandingPage() {
                                   </div>
                                 </div>
                                 <div className="font-semibold text-lg">
-                                  ₹{settlement.amount.toFixed(2)}
+                                  ₹{totalUnsettledAmount.toFixed(2)}
                                 </div>
                                 <div className="flex items-center gap-4">
                                   <div className="flex items-center gap-2">
@@ -915,32 +920,9 @@ export default function BorrowLandingPage() {
                                     size="sm"
                                     onClick={async () => {
                                       try {
-                                        // Find only the relevant unsettled splits
-                                        const relevantSplits = [];
-                                        activeGroup.expenses.forEach(exp => {
-                                          exp.splits.forEach(split => {
-                                            if (
-                                              split.memberId === settlement.from.id && 
-                                              !split.isSettled &&
-                                              exp.paidById === settlement.to.id
-                                            ) {
-                                              relevantSplits.push({
-                                                id: split.id,
-                                                amount: Number(split.amount)
-                                              });
-                                            }
-                                          });
-                                        });
-
-                                        if (!relevantSplits.length) {
-                                          toast.error("No unsettled splits found for this settlement");
-                                          return;
-                                        }
-
-                                        // Show loading state
                                         setFadingSettlements(prev => new Set([...prev, index]));
 
-                                        // Settle all relevant splits
+                                        // Settle only the unsettled splits
                                         const results = await Promise.all(
                                           relevantSplits.map(split => settleSplit(split.id))
                                         );
@@ -957,13 +939,11 @@ export default function BorrowLandingPage() {
                                             })
                                           }));
 
-                                          // Update active group with new data
                                           setActiveGroup({
                                             ...activeGroup,
                                             expenses: updatedExpenses
                                           });
 
-                                          // Fetch fresh data after animation
                                           setTimeout(async () => {
                                             await fetchGroups();
                                             setFadingSettlements(new Set());
