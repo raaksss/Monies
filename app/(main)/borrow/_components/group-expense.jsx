@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Trash2, Edit2, Check } from "lucide-react";
+import { UserPlus, Trash2, Edit2, Check, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -22,7 +22,6 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
     DialogFooter
   } from "@/components/ui/dialog"
 
@@ -59,6 +58,14 @@ export function GroupExpense () {
   // Add these near your other state declarations
   const [showEditGroupForm, setShowEditGroupForm] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
+
+  // Add these new states after your existing state declarations
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("all"); // "all", "paid", "received"
+  const [filterMember, setFilterMember] = useState("all");
+  const [sortOrder, setSortOrder] = useState("newest"); // "newest", "oldest", "amount-high", "amount-low"
+  const ITEMS_PER_PAGE = 5;
 
   // First, let's modify the calculateSplits function to ensure it always returns properly formatted data
   const calculateSplits = (amount, splitType, splits, members) => {
@@ -206,6 +213,75 @@ export function GroupExpense () {
     }
   };
 
+  // Add these functions before the return statement
+  const getFilteredExpenses = () => {
+    if (!activeGroup?.expenses) return [];
+    let expenses = [...activeGroup.expenses];
+    
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      expenses = expenses.filter(exp => 
+        exp.description.toLowerCase().includes(term) ||
+        exp.paidByName.toLowerCase().includes(term)
+      );
+    }
+    
+    // Apply member filter
+    if (filterMember !== "all") {
+      expenses = expenses.filter(exp => 
+        exp.paidById === filterMember || 
+        exp.splits.some(split => split.memberId === filterMember)
+      );
+    }
+    
+    // Apply type filter
+    if (filterType === "paid") {
+      expenses = expenses.filter(exp => exp.paidById === activeGroup.currentUserId);
+    } else if (filterType === "received") {
+      expenses = expenses.filter(exp => 
+        exp.splits.some(split => split.memberId === activeGroup.currentUserId)
+      );
+    }
+    
+    // Apply sorting
+    expenses.sort((a, b) => {
+      switch (sortOrder) {
+        case "oldest":
+          return new Date(a.createdAt) - new Date(b.createdAt);
+        case "amount-high":
+          return b.amount - a.amount;
+        case "amount-low":
+          return a.amount - b.amount;
+        case "newest":
+        default:
+          return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+    });
+    
+    return expenses;
+  };
+
+  const getPaginatedExpenses = () => {
+    const filtered = getFilteredExpenses();
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  };
+
+  // Calculate total pages
+  const totalPages = Math.ceil(getFilteredExpenses().length / ITEMS_PER_PAGE);
+
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  // Add this with your other useEffect hooks
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterType, filterMember, sortOrder]);
 
   return (
     <div>
@@ -320,9 +396,63 @@ export function GroupExpense () {
                     </TabsList>
 
                     <TabsContent value="expenses">
+                      {/* Filters */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                        {/* Search */}
+                        <div className="relative">
+                          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search expenses"
+                            className="pl-8"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                          />
+                        </div>
+                        
+                        {/* Member Filter */}
+                        <Select value={filterMember} onValueChange={setFilterMember}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Filter by member" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Members</SelectItem>
+                            {activeGroup?.members.map(member => (
+                              <SelectItem key={member.id} value={member.id}>
+                                {member.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        
+                        {/* Type Filter */}
+                        <Select value={filterType} onValueChange={setFilterType}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Filter by type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Expenses</SelectItem>
+                            <SelectItem value="paid">Paid by me</SelectItem>
+                            <SelectItem value="received">Shared with me</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        {/* Sort Order */}
+                        <Select value={sortOrder} onValueChange={setSortOrder}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sort by" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="newest">Newest First</SelectItem>
+                            <SelectItem value="oldest">Oldest First</SelectItem>
+                            <SelectItem value="amount-high">Amount (High to Low)</SelectItem>
+                            <SelectItem value="amount-low">Amount (Low to High)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       {/* Expenses list */}
                       <div className="space-y-4">
-                        {activeGroup.expenses?.map((expense) => (
+                        {getPaginatedExpenses().map((expense) => (
                           <div
                             key={expense.id}
                             className="flex justify-between items-center p-3 bg-muted rounded-lg"
@@ -378,7 +508,39 @@ export function GroupExpense () {
                             </div>
                           </div>
                         ))}
+                        
+                        {/* No Results Message */}
+                        {getFilteredExpenses().length === 0 && (
+                          <div className="text-center py-8 text-muted-foreground">
+                            No expenses found matching your filters.
+                          </div>
+                        )}
                       </div>
+
+                      {/* Pagination */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-2 mt-6">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <span className="text-sm">
+                            Page {currentPage} of {totalPages}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </TabsContent>
 
                     <TabsContent value="settlements">
