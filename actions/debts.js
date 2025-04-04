@@ -286,20 +286,20 @@ const serializeGroup = (group) => ({
   updatedAt: formatDate(group.updatedAt),
   members: group.members.map(member => ({
     ...member,
-    balance: member.balance ? member.balance.toNumber() : 0,
+    balance: typeof member.balance === 'number' ? member.balance : Number(member.balance || 0),
     createdAt: formatDate(member.createdAt),
     updatedAt: formatDate(member.updatedAt)
   })),
   expenses: group.expenses.map(expense => ({
     ...expense,
-    amount: expense.amount.toNumber(),
+    amount: Number(expense.amount),
     createdAt: formatDate(expense.createdAt),
     updatedAt: formatDate(expense.updatedAt),
     paidBy: expense.paidBy.id,
     paidByName: expense.paidBy.name,
     splits: expense.splits.map(split => ({
       ...split,
-      amount: split.amount.toNumber(),
+      amount: Number(split.amount),
       createdAt: formatDate(split.createdAt),
       updatedAt: formatDate(split.updatedAt),
       settledAt: formatDate(split.settledAt),
@@ -308,6 +308,11 @@ const serializeGroup = (group) => ({
         name: split.member.name
       }
     }))
+  })),
+  settlements: group.settlements.map(settlement => ({
+    from: settlement.from,
+    to: settlement.to,
+    amount: Number(settlement.amount)
   }))
 });
 
@@ -341,8 +346,31 @@ export async function getGroups() {
       orderBy: { createdAt: "desc" },
     });
 
+    // Calculate settlements for each group
+    const processedGroups = groups.map(group => {
+      // Calculate member balances
+      const balances = calculateMemberBalances(group.expenses);
+      
+      // Calculate settlements
+      const settlements = calculateSettlements(group.members, balances);
+
+      // Add balances to members
+      const membersWithBalances = group.members.map(member => ({
+        ...member,
+        balance: balances.get(member.id) || 0
+      }));
+
+      // Return processed group data
+      return {
+        ...group,
+        members: membersWithBalances,
+        settlements: settlements,
+        expenses: group.expenses
+      };
+    });
+
     // Serialize the groups using the helper function
-    const serializedGroups = groups.map(group => serializeGroup(group));
+    const serializedGroups = processedGroups.map(group => serializeGroup(group));
 
     return { success: true, groups: serializedGroups };
   } catch (error) {
@@ -494,27 +522,142 @@ export async function settleSplit(splitId) {
   try {
     const userId = await getUserId();
 
+    // First, find the split and verify it exists
+    const split = await db.expenseSplit.findUnique({
+      where: { id: splitId },
+      include: {
+        expense: {
+          include: {
+            group: {
+              include: {
+                members: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!split) {
+      throw new Error("Split not found");
+    }
+
+    // Verify user has access to this group
+    const isGroupMember = split.expense.group.members.some(
+      member => member.userId === userId
+    );
+
+    if (!isGroupMember) {
+      throw new Error("Unauthorized");
+    }
+
+    // Update the split to mark it as settled
     const updatedSplit = await db.expenseSplit.update({
       where: { id: splitId },
       data: {
         isSettled: true,
-        settledAt: new Date(),
-      },
-      include: {
-        member: true,
-        expense: {
-          include: {
-            paidBy: true,
-          },
-        },
-      },
+        settledAt: new Date()
+      }
     });
 
+    // Revalidate the page to show updated data
     revalidatePath("/borrow");
-    return { success: true, split: updatedSplit };
+    
+    return { 
+      success: true, 
+      message: "Split settled successfully",
+      split: updatedSplit 
+    };
   } catch (error) {
     console.error("Error settling split:", error);
     return { success: false, error: error.message };
   }
 }
+
+// Add this helper function to calculate member balances
+const calculateMemberBalances = (expenses) => {
+  const balances = new Map();
+
+  // Process each expense
+  expenses.forEach(expense => {
+    const paidById = expense.paidBy.id;
+    const amount = Number(expense.amount);
+
+    // Initialize balances if needed
+    if (!balances.has(paidById)) {
+      balances.set(paidById, 0);
+    }
+
+    // Add the full amount to payer's balance (they paid for everyone)
+    balances.set(paidById, balances.get(paidById) + amount);
+
+    // Process splits
+    expense.splits.forEach(split => {
+      const memberId = split.member.id;
+      if (!balances.has(memberId)) {
+        balances.set(memberId, 0);
+      }
+      // Subtract each person's share from their balance
+      balances.set(memberId, balances.get(memberId) - Number(split.amount));
+    });
+  });
+
+  return balances;
+};
+
+// Add this helper function to calculate settlements
+const calculateSettlements = (members, balances) => {
+  // Convert balances Map to array of objects
+  let balanceArray = members.map(member => ({
+    id: member.id,
+    name: member.name,
+    balance: balances.get(member.id) || 0
+  }));
+
+  // Sort by balance (negative first - these people need to pay)
+  balanceArray.sort((a, b) => a.balance - b.balance);
+
+  let settlements = [];
+  let i = 0; // index for people who need to pay (negative balance)
+  let j = balanceArray.length - 1; // index for people who need to receive (positive balance)
+
+  while (i < j) {
+    const debtor = balanceArray[i];
+    const creditor = balanceArray[j];
+
+    // Skip if balances are effectively zero
+    if (Math.abs(debtor.balance) < 0.01 && Math.abs(creditor.balance) < 0.01) {
+      i++;
+      j--;
+      continue;
+    }
+
+    // Calculate the settlement amount
+    const amount = Math.min(Math.abs(debtor.balance), creditor.balance);
+    
+    if (amount > 0) {
+      settlements.push({
+        from: {
+          id: debtor.id,
+          name: debtor.name
+        },
+        to: {
+          id: creditor.id,
+          name: creditor.name
+        },
+        amount: Math.round(amount * 100) / 100 // Round to 2 decimal places
+      });
+    }
+
+    // Update balances
+    debtor.balance += amount;
+    creditor.balance -= amount;
+
+    // Move indices if balances are settled
+    if (Math.abs(debtor.balance) < 0.01) i++;
+    if (Math.abs(creditor.balance) < 0.01) j--;
+  }
+
+  return settlements;
+};
 

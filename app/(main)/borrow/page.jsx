@@ -338,16 +338,50 @@ export default function BorrowLandingPage() {
     return settlements;
   };
 
+  // Add this helper function to recalculate settlements
+  const recalculateSettlements = (members, expenses) => {
+    // Calculate current balances for each member
+    const memberBalances = members.map(member => {
+      let balance = 0;
+      expenses.forEach(expense => {
+        // Add amount if they paid
+        if (expense.paidById === member.id) {
+          balance += Number(expense.amount);
+        }
+        // Subtract their splits if not settled
+        expense.splits.forEach(split => {
+          if (split.memberId === member.id && !split.isSettled) {
+            balance -= Number(split.amount);
+          }
+        });
+      });
+      return {
+        ...member,
+        balance
+      };
+    });
+
+    // Calculate settlements based on current balances
+    return calculateSettlements(memberBalances);
+  };
+
   useEffect(() => {
     fetchGroups();
   }, []);
   
-  // Add this function to fetch groups
+  // First, modify the fetchGroups function to update activeGroup
   const fetchGroups = async () => {
     try {
       const response = await getGroups();
       if (response.success) {
         setGroups(response.groups);
+        // If there's an active group, update it with the new data
+        if (activeGroup) {
+          const updatedActiveGroup = response.groups.find(g => g.id === activeGroup.id);
+          if (updatedActiveGroup) {
+            setActiveGroup(updatedActiveGroup);
+          }
+        }
       } else {
         toast.error(response.error || "Failed to fetch groups");
       }
@@ -835,12 +869,23 @@ export default function BorrowLandingPage() {
 
                     <TabsContent value="settlements">
                       <div className="space-y-4">
-                        {activeGroup.settlements?.filter(settlement => !settlement.isSettled)?.length > 0 ? (
-                          activeGroup.settlements
-                            .filter(settlement => !settlement.isSettled) // Only show unsettled transactions
-                            .map((settlement, index) => (
+                        {activeGroup.settlements?.length > 0 ? (
+                          activeGroup.settlements.map((settlement, index) => {
+                            // Check if all relevant splits are settled
+                            const isSettled = activeGroup.expenses.every(exp => 
+                              exp.splits.every(split => 
+                                !(split.memberId === settlement.from.id && 
+                                  exp.paidById === settlement.to.id && 
+                                  !split.isSettled)
+                              )
+                            );
+
+                            // Don't render if the settlement is already completed
+                            if (isSettled) return null;
+
+                            return (
                               <div
-                                key={index}
+                                key={`${settlement.from.id}-${settlement.to.id}-${settlement.amount}`}
                                 className={`flex items-center justify-between p-4 bg-muted rounded-lg transition-all duration-500 ${
                                   fadingSettlements.has(index) ? 'opacity-0 transform scale-95 h-0 m-0 p-0 overflow-hidden' : 'opacity-100 transform scale-100'
                                 }`}
@@ -848,65 +893,183 @@ export default function BorrowLandingPage() {
                                 <div className="flex items-center gap-2">
                                   <Avatar className="h-8 w-8">
                                     <AvatarFallback>
-                                      {settlement.from.substring(0, 2).toUpperCase()}
+                                      {settlement.from.name.substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                   </Avatar>
                                   <div className="flex flex-col">
-                                    <span className="font-medium">{settlement.from}</span>
+                                    <span className="font-medium">{settlement.from.name}</span>
                                     <span className="text-sm text-muted-foreground">needs to pay</span>
                                   </div>
                                 </div>
                                 <div className="font-semibold text-lg">
-                                  ₹{settlement.amount}
+                                  ₹{settlement.amount.toFixed(2)}
                                 </div>
                                 <div className="flex items-center gap-4">
                                   <div className="flex items-center gap-2">
                                     <div className="flex flex-col items-end">
-                                      <span className="font-medium">{settlement.to}</span>
+                                      <span className="font-medium">{settlement.to.name}</span>
                                       <span className="text-sm text-muted-foreground">will receive</span>
                                     </div>
                                     <Avatar className="h-8 w-8">
                                       <AvatarFallback>
-                                        {settlement.to.substring(0, 2).toUpperCase()}
+                                        {settlement.to.name.substring(0, 2).toUpperCase()}
                                       </AvatarFallback>
                                     </Avatar>
                                   </div>
-                                  <div className="flex gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={async () => {
-                                        try {
-                                          const response = await settleSplit(settlement.id);
-                                          if (response.success) {
-                                            setFadingSettlements(prev => new Set([...prev, index]));
-                                            setTimeout(() => {
-                                              fetchGroups(); // Refresh groups to get updated data
-                                              setFadingSettlements(new Set());
-                                              toast.success('Settlement marked as complete!');
-                                            }, 500);
-                                          } else {
-                                            toast.error(response.error || "Failed to settle");
-                                          }
-                                        } catch (error) {
-                                          console.error("Error settling split:", error);
-                                          toast.error("An error occurred while settling");
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      try {
+                                        // Find all unsettled splits between these members
+                                        const relevantSplits = [];
+                                        activeGroup.expenses.forEach(exp => {
+                                          exp.splits.forEach(split => {
+                                            if (
+                                              split.memberId === settlement.from.id && 
+                                              !split.isSettled &&
+                                              exp.paidById === settlement.to.id
+                                            ) {
+                                              relevantSplits.push({
+                                                ...split,
+                                                expenseId: exp.id,
+                                                amount: Number(split.amount)
+                                              });
+                                            }
+                                          });
+                                        });
+
+                                        if (!relevantSplits.length) {
+                                          toast.error("No unsettled splits found for this settlement");
+                                          return;
                                         }
-                                      }}
-                                      className="flex items-center gap-1"
-                                    >
-                                      <Check className="h-4 w-4" />
-                                      <span>Settle</span>
-                                    </Button>
-                                  </div>
+
+                                        // Sort splits by date and settle them until we reach the settlement amount
+                                        let remainingAmount = settlement.amount;
+                                        const splitsToSettle = [];
+
+                                        for (const split of relevantSplits) {
+                                          if (remainingAmount <= 0) break;
+                                          splitsToSettle.push(split.id);
+                                          remainingAmount -= split.amount;
+                                        }
+
+                                        // Settle all relevant splits
+                                        const settlePromises = splitsToSettle.map(splitId => 
+                                          settleSplit(splitId)
+                                        );
+
+                                        const results = await Promise.all(settlePromises);
+                                        const allSuccessful = results.every(r => r.success);
+
+                                        if (allSuccessful) {
+                                          // Update the active group with new data
+                                          const updatedExpenses = activeGroup.expenses.map(exp => ({
+                                            ...exp,
+                                            splits: exp.splits.map(split => {
+                                              if (splitsToSettle.includes(split.id)) {
+                                                return { ...split, isSettled: true };
+                                              }
+                                              return split;
+                                            })
+                                          }));
+
+                                          // Update member balances
+                                          const updatedMembers = activeGroup.members.map(member => {
+                                            let newBalance = Number(member.balance);
+                                            if (member.id === settlement.from.id) {
+                                              // Person who needs to pay: reduce their negative balance
+                                              newBalance += Number(settlement.amount);
+                                            }
+                                            if (member.id === settlement.to.id) {
+                                              // Person who receives: reduce their positive balance
+                                              newBalance -= Number(settlement.amount);
+                                            }
+                                            return {
+                                              ...member,
+                                              balance: newBalance
+                                            };
+                                          });
+
+                                          // Recalculate settlements based on updated expenses and balances
+                                          const newSettlements = recalculateSettlements(updatedMembers, updatedExpenses);
+
+                                          // Show the settlement animation
+                                          setFadingSettlements(prev => new Set([...prev, index]));
+                                          
+                                          // Update the active group with new data
+                                          setActiveGroup({
+                                            ...activeGroup,
+                                            expenses: updatedExpenses,
+                                            members: updatedMembers,
+                                            settlements: newSettlements
+                                          });
+
+                                          // Fetch fresh data after animation
+                                          setTimeout(async () => {
+                                            await fetchGroups();
+                                            setFadingSettlements(new Set());
+                                            toast.success('Settlement completed successfully!');
+                                          }, 500);
+                                        } else {
+                                          toast.error("Some settlements failed to process");
+                                        }
+                                      } catch (error) {
+                                        console.error("Error settling:", error);
+                                        toast.error("An error occurred while settling");
+                                      }
+                                    }}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <Check className="h-4 w-4" />
+                                    <span>Settle</span>
+                                  </Button>
                                 </div>
                               </div>
-                            ))
+                            );
+                          }).filter(Boolean) // Remove null entries
                         ) : (
                           <div className="text-center py-8 text-muted-foreground">
                             No settlements needed. All balances are settled.
                           </div>
                         )}
+                      </div>
+
+                      {/* Member Balances section remains unchanged */}
+                      <div className="mt-6 space-y-2">
+                        <h3 className="font-semibold">Member Balances</h3>
+                        <div className="grid gap-2">
+                          {activeGroup.members.map((member) => (
+                            <div
+                              key={member.id}
+                              className="flex justify-between items-center p-2 bg-muted rounded"
+                            >
+                              <div className="flex flex-col">
+                                <span>{member.name}</span>
+                                <span className="text-sm text-muted-foreground">
+                                  {member.balance > 0 
+                                    ? "To receive" 
+                                    : member.balance < 0 
+                                      ? "To pay" 
+                                      : "All settled"}
+                                </span>
+                              </div>
+                              <span 
+                                className={`font-medium ${
+                                  member.balance > 0 
+                                    ? "text-green-500" 
+                                    : member.balance < 0 
+                                      ? "text-red-500" 
+                                      : "text-muted-foreground"
+                                }`}
+                              >
+                                {member.balance === 0 
+                                  ? "₹0.00"
+                                  : `${member.balance > 0 ? "+" : ""}₹${Math.abs(member.balance).toFixed(2)}`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </TabsContent>
                   </Tabs>
@@ -1081,8 +1244,7 @@ export default function BorrowLandingPage() {
 
               if (response.success) {
                 toast.success("Expense added successfully!");
-                fetchGroups();
-                console.log("Response:", response);
+                await fetchGroups(); // Wait for the groups to be fetched
                 setNewExpense({
                   description: "",
                   amount: "",
@@ -1093,7 +1255,6 @@ export default function BorrowLandingPage() {
                   createdAt: new Date().toISOString(),
                 });
                 setShowExpenseForm(false);
-                fetchGroups();
               } else {
                 toast.error(response.error || "Failed to add expense");
               }
