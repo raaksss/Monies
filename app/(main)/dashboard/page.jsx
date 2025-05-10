@@ -53,7 +53,6 @@ export default async function DashboardPage() {
           ))}
       </div>
       <div className="py-2">
-
       </div>
     </div>
   );

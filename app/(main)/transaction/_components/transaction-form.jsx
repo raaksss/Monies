@@ -585,9 +585,7 @@ export function AddTransactionForm({
           </form>
         </>
       )}
-       <div className="py-2">
-
-</div>
+       
     </div>
   );
 }
