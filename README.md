@@ -34,12 +34,12 @@ Monies is a comprehensive financial management platform designed to help you tak
 - Visualize budget utilization
 - Track spending patterns
 
-### 🤝 Borrow & Lend Tracker
+### 🤝 Personal and Group Expense Management
 - Keep track of money you've borrowed or lent
 - Maintain a running balance with each person
 - Add, edit, and delete transactions
 - Clear visual indicators for money owed to you vs. money you owe
-- Use + for money you owe others, - for money others owe you
+- Make groups for group expenses
 
 ### 🤖 Fina - AI Financial Assistant
 - Get personalized financial advice
@@ -119,9 +119,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 
 ---
