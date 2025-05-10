@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -60,12 +59,11 @@ const HeroSection = () => {
           </div>
           <div className="md:w-1/2 hero-image-wrapper">
             <div className="relative hero-image" ref={imageRef}>
-              <Image
+              <img
                 src="/dashboard-preview.png"
                 alt="Dashboard Preview"
-                width={700}
-                height={500}
-                className="rounded-lg shadow-2xl"
+                className="rounded-lg shadow-2xl w-full h-auto"
+                style={{ maxWidth: '700px' }}
               />
               <div className="absolute -bottom-4 -right-3 sm:-bottom-6 sm:-right-4 bg-white dark:bg-gray-800 p-1 sm:p-2 rounded-lg shadow-lg">
                 <p className="text-sm font-medium dark:text-white">Total Savings</p>
