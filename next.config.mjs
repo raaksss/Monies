@@ -7,6 +7,7 @@ const nextConfig = {
         hostname: "randomuser.me",
       },
     ],
+    unoptimized: true,
   },
 
   experimental: {
