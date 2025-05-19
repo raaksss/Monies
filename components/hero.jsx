@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import Image from "next/image";
 
 const HeroSection = () => {
   const imageRef = useRef(null);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     const imageElement = imageRef.current;
@@ -59,12 +61,26 @@ const HeroSection = () => {
           </div>
           <div className="md:w-1/2 hero-image-wrapper">
             <div className="relative hero-image" ref={imageRef}>
-              <img
-                src="/dashboard-preview.png"
-                alt="Dashboard Preview"
-                className="rounded-lg shadow-2xl w-full h-auto"
-                style={{ maxWidth: '700px' }}
-              />
+              <div className="relative w-full h-[400px] rounded-lg overflow-hidden">
+                {!imageError ? (
+                  <Image
+                    src="/dashboard-preview.png"
+                    alt="Dashboard Preview"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="rounded-lg shadow-2xl object-contain"
+                    priority
+                    onError={(e) => {
+                      console.error('Image failed to load:', e);
+                      setImageError(true);
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+                    <p>Image failed to load</p>
+                  </div>
+                )}
+              </div>
               <div className="absolute -bottom-4 -right-3 sm:-bottom-6 sm:-right-4 bg-white dark:bg-gray-800 p-1 sm:p-2 rounded-lg shadow-lg">
                 <p className="text-sm font-medium dark:text-white">Total Savings</p>
                 <p className="text-2xl font-bold text-green-600 dark:text-green-400">₹12,580</p>
