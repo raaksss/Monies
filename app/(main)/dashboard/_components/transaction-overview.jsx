@@ -9,8 +9,8 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { format } from "date-fns";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { format, startOfDay, endOfDay } from "date-fns";
+import { ArrowUpRight, ArrowDownRight, Calendar } from "lucide-react";
 
 import {
   Select,
@@ -21,6 +21,14 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const COLORS = [
   "#FF6B6B",
@@ -36,12 +44,17 @@ export function DashboardOverview({ accounts, transactions }) {
   const [selectedAccountId, setSelectedAccountId] = useState(
     accounts.find((a) => a.isDefault)?.id || accounts[0]?.id
   );
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1-based index for display
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [dateRange, setDateRange] = useState({
+    from: startOfDay(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
+    to: endOfDay(new Date())
+  });
+  const [activeTab, setActiveTab] = useState("monthly");
 
   // Get available months for filtering
   const months = Array.from({ length: 12 }, (_, i) => ({
     label: format(new Date(2023, i, 1), "MMMM"),
-    value: i + 1, // 1-based index
+    value: i + 1,
   }));
 
   // Filter transactions for selected account
@@ -54,14 +67,22 @@ export function DashboardOverview({ accounts, transactions }) {
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 5);
 
-  // Filter transactions for selected month
+  // Filter transactions based on active tab
   const filteredExpenses = accountTransactions.filter((t) => {
     const transactionDate = new Date(t.date);
-    return (
-      t.type === "EXPENSE" &&
-      transactionDate.getMonth() + 1 === selectedMonth && // Ensure correct comparison
-      transactionDate.getFullYear() === new Date().getFullYear()
-    );
+    if (activeTab === "monthly") {
+      return (
+        t.type === "EXPENSE" &&
+        transactionDate.getMonth() + 1 === selectedMonth &&
+        transactionDate.getFullYear() === new Date().getFullYear()
+      );
+    } else {
+      return (
+        t.type === "EXPENSE" &&
+        transactionDate >= dateRange.from &&
+        transactionDate <= dateRange.to
+      );
+    }
   });
 
   // Group expenses by category
@@ -152,27 +173,78 @@ export function DashboardOverview({ accounts, transactions }) {
 
       {/* Expense Breakdown Card */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-base font-normal">
-            Monthly Expense Breakdown
-          </CardTitle>
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Select Month" />
-            </SelectTrigger>
-            <SelectContent>
-              {months.map((month) => (
-                <SelectItem key={month.value} value={month.value}>
-                  {month.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <CardHeader className="space-y-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-normal">
+              Expense Breakdown
+            </CardTitle>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-[300px]">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                <TabsTrigger value="custom">Custom Range</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          <div className="flex justify-end">
+            {activeTab === "monthly" ? (
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Select Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {months.map((month) => (
+                    <SelectItem key={month.value} value={month.value}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[280px] justify-start text-left font-normal",
+                      !dateRange && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "LLL dd, y")} -{" "}
+                          {format(dateRange.to, "LLL dd, y")}
+                        </>
+                      ) : (
+                        format(dateRange.from, "LLL dd, y")
+                      )
+                    ) : (
+                      <span>Pick a date range</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarComponent
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="p-0 pb-5">
           {pieChartData.length === 0 ? (
             <p className="text-center text-muted-foreground py-4">
-              No expenses for {months.find((m) => m.value === selectedMonth)?.label}
+              {activeTab === "monthly" 
+                ? `No expenses for ${months.find((m) => m.value === selectedMonth)?.label}`
+                : "No expenses for selected date range"
+              }
             </p>
           ) : (
             <div className="h-[300px]">
