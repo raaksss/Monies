@@ -15,10 +15,10 @@ const aj = arcjet({
   rules: [
     // Shield protection for content and security
     shield({
-      mode: "LIVE",
+      mode: "DRY_RUN", // Changed from LIVE to DRY_RUN for development
     }),
     detectBot({
-      mode: "LIVE", // will block requests. Use "DRY_RUN" to log only
+      mode: "DRY_RUN", // Changed from LIVE to DRY_RUN for development
       allow: [
         "CATEGORY:SEARCH_ENGINE", // Google, Bing, etc
         "GO_HTTP", // For Inngest
@@ -30,6 +30,12 @@ const aj = arcjet({
 
 // Create base Clerk middleware
 const clerk = clerkMiddleware(async (auth, req) => {
+  // Check if the request is for a static file
+  const isStaticFile = req.nextUrl.pathname.match(/\.(jpg|jpeg|png|gif|ico|svg|webp)$/);
+  if (isStaticFile) {
+    return NextResponse.next();
+  }
+
   const { userId } = await auth();
 
   if (!userId && isProtectedRoute(req)) {
@@ -45,13 +51,6 @@ export default createMiddleware(aj, clerk);
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/(.*)",
   ],
 };
