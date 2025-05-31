@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import useFetch from "@/hooks/use-fetch";
 import { toast } from "sonner";
+import dynamic from 'next/dynamic';
 
 import {
   Card,
@@ -17,11 +18,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updateBudget } from "@/actions/budget";
 
+// Dynamically import the Progress component with no SSR
+const DynamicProgress = dynamic(
+  () => import('@/components/ui/progress').then(mod => mod.Progress),
+  { ssr: false }
+);
+
 export function BudgetProgress({ initialBudget, currentExpenses }) {
   const [isEditing, setIsEditing] = useState(false);
   const [newBudget, setNewBudget] = useState(
     initialBudget?.amount?.toString() || ""
   );
+  const [mounted, setMounted] = useState(false);
 
   const {
     loading: isLoading,
@@ -51,6 +59,10 @@ export function BudgetProgress({ initialBudget, currentExpenses }) {
   };
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (updatedBudget?.success) {
       setIsEditing(false);
       toast.success("Budget updated successfully");
@@ -62,6 +74,10 @@ export function BudgetProgress({ initialBudget, currentExpenses }) {
       toast.error(error.message || "Failed to update budget");
     }
   }, [error]);
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <Card>
@@ -124,10 +140,9 @@ export function BudgetProgress({ initialBudget, currentExpenses }) {
       <CardContent>
         {initialBudget && (
           <div className="space-y-2">
-            <Progress
+            <DynamicProgress
               value={percentUsed}
               extraStyles={`${
-                // add to Progress component
                 percentUsed >= 90
                   ? "bg-red-500"
                   : percentUsed >= 75

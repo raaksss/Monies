@@ -388,7 +388,7 @@ export async function scanReceipt(file) {
 
 export async function importStatementTransactions(file){
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // Convert File to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
@@ -427,7 +427,7 @@ export async function importStatementTransactions(file){
       - date (YYYY-MM-DD)
       - description (String) (Don't include particulars as description, Insight meaningful info from Particulars and give as Description. No transaction id as description allowed!!)
       - isRecurring (Boolean, default: false)
-      - recurringInterval (One of: daily, weekly, bi-weekly, monthly, quarterly, yearly, or null. Only set if isRecurring is true)
+      - recurringInterval (One of: DAILY, WEEKLY, BI_WEEKLY, MONTHLY, QUARTERLY, YEARLY, or null. Only set if isRecurring is true)
       - nextRecurringDate (YYYY-MM-DD or null. Only set if isRecurring is true)
 
       Only respond with valid JSON in this exact format:
@@ -449,7 +449,7 @@ export async function importStatementTransactions(file){
           "date": "2024-03-01",
           "description": "Monthly Salary",
           "isRecurring": true,
-          "recurringInterval": "monthly",
+          "recurringInterval": "MONTHLY"
         }
       ]
 
@@ -468,28 +468,28 @@ export async function importStatementTransactions(file){
 
     const response = await result.response;
     const text = response.text();
-    const cleanedText = text.replace(/```(?:json)?\n?/g, "").trim();
+    let cleanedText = text.replace(/```(?:json)?\n?/g, "").trim();
 
     try {
       const transactions = JSON.parse(cleanedText);
       return transactions.map(txn => ({
-        type: txn.type,
+        type: txn.type.toUpperCase(),
         amount: parseFloat(txn.amount),
         account: txn.account,
-        category: txn.category,
+        category: txn.category.toLowerCase(),
         date: new Date(txn.date),
         description: txn.description,
         isRecurring: txn.isRecurring || false,
-        recurringInterval: txn.isRecurring ? txn.recurringInterval : null, 
+        recurringInterval: txn.isRecurring ? txn.recurringInterval?.toUpperCase() : null,
       }));
     } catch (parseError) {
       console.error("Error parsing JSON response:", parseError);
+      console.error("Raw AI Response:", text);
       throw new Error("Invalid response format from Gemini");
     }
   } catch (error) {
-    console.error("Raw AI Response:", cleanedText);
-    console.error("Error parsing transaction:", error);
-    throw new Error("Failed to parse transaction");
+    console.error("Error importing transactions:", error);
+    throw new Error("Failed to import transactions");
   }
 }
 

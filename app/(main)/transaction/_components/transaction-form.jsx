@@ -342,11 +342,11 @@ export function AddTransactionForm({
                                   {account.name} (₹{parseFloat(account.balance).toFixed(2)})
                                 </SelectItem>
                               ))}
-                              <CreateAccountDrawer>
+                              {/* <CreateAccountDrawer>
                                 <Button variant="ghost" className="w-full text-left text-sm">
                                   + Create Account
                                 </Button>
-                              </CreateAccountDrawer>
+                              </CreateAccountDrawer> */}
                             </SelectContent>
                           </Select>
                         </div>
@@ -456,11 +456,11 @@ export function AddTransactionForm({
                         {account.name} (₹{parseFloat(account.balance).toFixed(2)})
                       </SelectItem>
                     ))}
-                    <CreateAccountDrawer>
+                    {/* <CreateAccountDrawer>
                       <Button variant="ghost" className="w-full text-left text-sm">
                         + Create Account
                       </Button>
-                    </CreateAccountDrawer>
+                    </CreateAccountDrawer> */}
                   </SelectContent>
                 </Select>
                 {errors.accountId && <p className="text-sm text-red-500">{errors.accountId.message}</p>}

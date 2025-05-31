@@ -154,3 +154,56 @@ export async function getDashboardData() {
 
   return transactions.map(serializeTransaction);
 }
+
+export async function updateAccount(id, data) {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+
+    if (!user) throw new Error("User not found");
+
+    // Convert balance to float
+    const balanceFloat = parseFloat(data.balance);
+
+    // Check if this should be the default account
+    const shouldBeDefault = data.isDefault;
+
+    // If this account is being set as default, unset any existing default account
+    if (shouldBeDefault) {
+      await db.account.updateMany({
+        where: {
+          userId: user.id,
+          isDefault: true,
+          id: { not: id }, // Exclude current account
+        },
+        data: { isDefault: false },
+      });
+    }
+
+    // Update account
+    const account = await db.account.update({
+      where: {
+        id,
+        userId: user.id,
+      },
+      data: {
+        name: data.name,
+        type: data.type,
+        balance: balanceFloat,
+        isDefault: shouldBeDefault,
+      },
+    });
+
+    // Serialize the account before returning
+    const serializedAccount = serializeTransaction(account);
+
+    revalidatePath("/dashboard");
+    return { success: true, data: serializedAccount };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+}
