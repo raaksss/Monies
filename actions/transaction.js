@@ -152,18 +152,32 @@ export async function createBulkTransactions(transactions) {
     
     let newBalance = Number(account.balance);
 
-    // Check for similar transactions for each transaction in the bulk
-    const enhancedTransactions = await Promise.all(
-      transactions.map(async (transaction) => {
-        const previousCategory = await findSimilarTransactionCategory(transaction.description, user.id);
-        return {
-          ...transaction,
-          category: previousCategory || transaction.category
-        };
-      })
+    // First, get all unique descriptions to minimize database queries
+    const uniqueDescriptions = [...new Set(transactions.map(t => t.description))];
+    
+    // Batch fetch similar categories for all unique descriptions
+    const similarCategories = await Promise.all(
+      uniqueDescriptions.map(desc => findSimilarTransactionCategory(desc, user.id))
+    );
+    
+    // Create a map of description to category for quick lookup
+    const categoryMap = Object.fromEntries(
+      uniqueDescriptions.map((desc, index) => [desc, similarCategories[index]])
     );
 
-    // Create transactions and update account balances in a single database transaction
+    // Enhance transactions with categories
+    const enhancedTransactions = transactions.map(transaction => ({
+      ...transaction,
+      category: categoryMap[transaction.description] || transaction.category
+    }));
+
+    // Calculate total balance change
+    const totalBalanceChange = enhancedTransactions.reduce((sum, transaction) => {
+      const change = transaction.type === "EXPENSE" ? -transaction.amount : transaction.amount;
+      return sum + change;
+    }, 0);
+
+    // Create transactions and update account balance in a single transaction
     const newTransactions = await db.$transaction(async (tx) => {
       const createdTransactions = await tx.transaction.createMany({
         data: enhancedTransactions.map((transaction) => ({
@@ -175,14 +189,13 @@ export async function createBulkTransactions(transactions) {
               : null,
         })),
       });
-      // Update the account balance
+
       await tx.account.update({
         where: { id: accountId },
-        data: { balance: newBalance },
+        data: { balance: newBalance + totalBalanceChange },
       });
       
-      console.log(createdTransactions)
-       return createdTransactions;
+      return createdTransactions;
     });
 
     // Revalidate dashboard and account pages
