@@ -177,25 +177,41 @@ export async function createBulkTransactions(transactions) {
       return sum + change;
     }, 0);
 
-    // Create transactions and update account balance in a single transaction
-    const newTransactions = await db.$transaction(async (tx) => {
-      const createdTransactions = await tx.transaction.createMany({
-        data: enhancedTransactions.map((transaction) => ({
-          ...transaction,
-          userId: user.id,
-          nextRecurringDate:
-            transaction.isRecurring && transaction.recurringInterval
-              ? calculateNextRecurringDate(transaction.date, transaction.recurringInterval)
-              : null,
-        })),
-      });
+    // Process transactions in smaller batches to avoid timeout
+    const BATCH_SIZE = 50;
+    const batches = [];
+    for (let i = 0; i < enhancedTransactions.length; i += BATCH_SIZE) {
+      batches.push(enhancedTransactions.slice(i, i + BATCH_SIZE));
+    }
 
+    // Create transactions and update account balance with increased timeout
+    const newTransactions = await db.$transaction(async (tx) => {
+      const createdTransactions = [];
+      
+      // Process each batch
+      for (const batch of batches) {
+        const batchResult = await tx.transaction.createMany({
+          data: batch.map((transaction) => ({
+            ...transaction,
+            userId: user.id,
+            nextRecurringDate:
+              transaction.isRecurring && transaction.recurringInterval
+                ? calculateNextRecurringDate(transaction.date, transaction.recurringInterval)
+                : null,
+          })),
+        });
+        createdTransactions.push(batchResult);
+      }
+
+      // Update account balance
       await tx.account.update({
         where: { id: accountId },
         data: { balance: newBalance + totalBalanceChange },
       });
       
       return createdTransactions;
+    }, {
+      timeout: 30000 // Increase timeout to 30 seconds
     });
 
     // Revalidate dashboard and account pages
@@ -204,6 +220,7 @@ export async function createBulkTransactions(transactions) {
 
     return { success: true, data: newTransactions };
   } catch (error) {
+    console.error("Bulk transaction error:", error);
     throw new Error(error.message);
   }
 }
