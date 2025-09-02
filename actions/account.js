@@ -148,3 +148,83 @@ export async function updateDefaultAccount(accountId) {
     return { success: false, error: error.message };
   }
 }
+
+export async function deleteAccount(accountId) {
+  try {
+    if (!accountId) {
+      throw new Error("Account ID is required");
+    }
+
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Check if this is the last account
+    const accountCount = await db.account.count({
+      where: { userId: user.id },
+    });
+
+    if (accountCount <= 1) {
+      throw new Error("Cannot delete the last account");
+    }
+
+    // Check if this is the default account
+    const account = await db.account.findUnique({
+      where: {
+        id: accountId,
+        userId: user.id,
+      },
+    });
+
+    if (!account) {
+      throw new Error("Account not found");
+    }
+
+    if (account.isDefault) {
+      throw new Error("Cannot delete the default account. Please set another account as default first.");
+    }
+
+    // Delete in smaller batches to avoid timeout
+    const BATCH_SIZE = 100;
+
+    // Get total count of transactions
+    const transactionCount = await db.transaction.count({
+      where: {
+        accountId,
+        userId: user.id,
+      },
+    });
+
+    // Delete transactions in batches
+    for (let i = 0; i < transactionCount; i += BATCH_SIZE) {
+      await db.transaction.deleteMany({
+        where: {
+          accountId,
+          userId: user.id,
+        },
+        take: BATCH_SIZE,
+      });
+    }
+
+    // Finally delete the account
+    await db.account.delete({
+      where: {
+        id: accountId,
+        userId: user.id,
+      },
+    });
+
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting account:", error);
+    return { success: false, error: error.message };
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, ArrowDownRight, CreditCard, MoreHorizontal } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, CreditCard, MoreHorizontal, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
@@ -18,9 +18,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { updateDefaultAccount } from "@/actions/account";
+import { updateDefaultAccount, deleteAccount } from "@/actions/account";
 import dynamic from 'next/dynamic';
 import { toast } from "sonner";
 
@@ -33,20 +43,29 @@ const EditAccountDialog = dynamic(
 export function AccountCard({ account }) {
   const { name, type, balance, id, isDefault } = account;
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const {
     loading: updateDefaultLoading,
     fn: updateDefaultFn,
     data: updatedAccount,
-    error,
+    error: updateDefaultError,
   } = useFetch(updateDefaultAccount);
 
+  const {
+    loading: deleteLoading,
+    fn: deleteFn,
+    data: deleteResult,
+    error: deleteError,
+  } = useFetch(deleteAccount);
+
   const handleDefaultChange = async (event) => {
-    event.preventDefault(); // Prevent navigation
+    event.preventDefault();
 
     if (isDefault) {
       toast.warning("You need atleast 1 default account");
-      return; // Don't allow toggling off the default account
+      return;
     }
 
     await updateDefaultFn(id);
@@ -57,6 +76,32 @@ export function AccountCard({ account }) {
     setShowEditDialog(true);
   };
 
+  const handleDeleteClick = (e) => {
+    e.preventDefault();
+    if (isDefault) {
+      toast.warning("Please set another account as default before deleting this one");
+      return;
+    }
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      setIsDeleting(true);
+      const result = await deleteFn(id);
+      if (result?.success) {
+        toast.success("Account deleted successfully");
+        setShowDeleteDialog(false);
+      } else {
+        toast.error(result?.error || "Failed to delete account");
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to delete account");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   useEffect(() => {
     if (updatedAccount?.success) {
       toast.success("Default account updated successfully");
@@ -64,10 +109,17 @@ export function AccountCard({ account }) {
   }, [updatedAccount]);
 
   useEffect(() => {
-    if (error) {
-      toast.error(error.message || "Failed to update default account");
+    if (updateDefaultError) {
+      toast.error(updateDefaultError.message || "Failed to update default account");
     }
-  }, [error]);
+  }, [updateDefaultError]);
+
+  useEffect(() => {
+    if (deleteError) {
+      toast.error(deleteError.message || "Failed to delete account");
+      setIsDeleting(false);
+    }
+  }, [deleteError]);
 
   return (
     <>
@@ -80,17 +132,25 @@ export function AccountCard({ account }) {
             <Switch
               checked={isDefault}
               onClick={handleDefaultChange}
-              disabled={updateDefaultLoading}
+              disabled={updateDefaultLoading || isDeleting}
             />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
+                <Button variant="ghost" className="h-8 w-8 p-0" disabled={isDeleting}>
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={handleEditClick}>
+                <DropdownMenuItem onSelect={handleEditClick} disabled={isDeleting}>
                   Edit Account
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onSelect={handleDeleteClick}
+                  className="text-red-600 focus:text-red-600"
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Account
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -125,6 +185,31 @@ export function AccountCard({ account }) {
           onOpenChange={setShowEditDialog}
         />
       )}
+
+      <AlertDialog 
+        open={showDeleteDialog} 
+        onOpenChange={setShowDeleteDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the account
+              and all its associated transactions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

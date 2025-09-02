@@ -172,119 +172,152 @@ export function DashboardOverview({ accounts, transactions }) {
       </Card>
 
       {/* Expense Breakdown Card */}
-      <Card>
-        <CardHeader className="space-y-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-normal">
-              Expense Breakdown
-            </CardTitle>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-[300px]">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                <TabsTrigger value="custom">Custom Range</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          <div className="flex justify-end">
-            {activeTab === "monthly" ? (
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Select Month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map((month) => (
-                    <SelectItem key={month.value} value={month.value}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-[280px] justify-start text-left font-normal",
-                      !dateRange && "text-muted-foreground"
-                    )}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {dateRange?.from ? (
-                      dateRange.to ? (
-                        <>
-                          {format(dateRange.from, "LLL dd, y")} -{" "}
-                          {format(dateRange.to, "LLL dd, y")}
-                        </>
-                      ) : (
-                        format(dateRange.from, "LLL dd, y")
-                      )
-                    ) : (
-                      <span>Pick a date range</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <CalendarComponent
-                    initialFocus
-                    mode="range"
-                    defaultMonth={dateRange?.from}
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    numberOfMonths={2}
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="p-0 pb-5">
-          {pieChartData.length === 0 ? (
-            <p className="text-center text-muted-foreground py-4">
-              {activeTab === "monthly" 
-                ? `No expenses for ${months.find((m) => m.value === selectedMonth)?.label}`
-                : "No expenses for selected date range"
-              }
-            </p>
-          ) : (
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieChartData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ₹${value.toFixed(2)}`}
-                  >
-                    {pieChartData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value) => `₹${value.toFixed(2)}`}
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "var(--radius)",
-                      color: "hsl(var(--popover-foreground))"
-                    }}
-                    labelStyle={{ color: "hsl(var(--popover-foreground))" }}
-                    itemStyle={{ color: "hsl(var(--popover-foreground))" }}
-                    wrapperStyle={{ outline: "none" }}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Expense Breakdown Card */}
+<Card>
+  <CardHeader className="space-y-4">
+    <div className="flex items-center justify-between">
+      <CardTitle className="text-base font-normal">
+        Expense Breakdown
+      </CardTitle>
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="w-[300px]"
+      >
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="monthly">Monthly</TabsTrigger>
+          <TabsTrigger value="custom">Custom Range</TabsTrigger>
+        </TabsList>
+      </Tabs>
+    </div>
+
+    {/* Total Expense Display */}
+    <div className="flex justify-between items-center">
+      <p className="text-sm text-muted-foreground">
+        Total Expense{" "}
+        {activeTab === "monthly"
+          ? `(${months.find((m) => m.value === selectedMonth)?.label})`
+          : `(Selected Range)`}
+      </p>
+      <p className="text-lg font-semibold">
+        ₹
+        {filteredExpenses
+          .reduce((sum, t) => sum + t.amount, 0)
+          .toFixed(2)}
+      </p>
+    </div>
+
+    <div className="flex justify-end">
+      {activeTab === "monthly" ? (
+        <Select
+          value={selectedMonth}
+          onValueChange={setSelectedMonth}
+        >
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Select Month" />
+          </SelectTrigger>
+          <SelectContent>
+            {months.map((month) => (
+              <SelectItem key={month.value} value={month.value}>
+                {month.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-[280px] justify-start text-left font-normal",
+                !dateRange && "text-muted-foreground"
+              )}
+            >
+              <Calendar className="mr-2 h-4 w-4" />
+              {dateRange?.from ? (
+                dateRange.to ? (
+                  <>
+                    {format(dateRange.from, "LLL dd, y")} -{" "}
+                    {format(dateRange.to, "LLL dd, y")}
+                  </>
+                ) : (
+                  format(dateRange.from, "LLL dd, y")
+                )
+              ) : (
+                <span>Pick a date range</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-auto p-0"
+            align="end"
+          >
+            <CalendarComponent
+              initialFocus
+              mode="range"
+              defaultMonth={dateRange?.from}
+              selected={dateRange}
+              onSelect={setDateRange}
+              numberOfMonths={2}
+            />
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  </CardHeader>
+
+  <CardContent className="p-0 pb-5">
+    {pieChartData.length === 0 ? (
+      <p className="text-center text-muted-foreground py-4">
+        {activeTab === "monthly"
+          ? `No expenses for ${
+              months.find((m) => m.value === selectedMonth)?.label
+            }`
+          : "No expenses for selected date range"}
+      </p>
+    ) : (
+      <div className="h-[350px] md:h-[400px] w-full px-2">
+  <ResponsiveContainer width="100%" height="100%">
+    <PieChart>
+      <Pie
+        data={pieChartData}
+        cx="50%"
+        cy="50%"
+        outerRadius="70%"
+        fill="#8884d8"
+        dataKey="value"
+        labelLine={false}
+      >
+        {pieChartData.map((entry, index) => (
+          <Cell
+            key={`cell-${index}`}
+            fill={COLORS[index % COLORS.length]}
+          />
+        ))}
+      </Pie>
+
+      <Tooltip
+        formatter={(value) => `₹${value.toFixed(2)}`}
+        contentStyle={{
+          backgroundColor: "hsl(var(--popover))",
+          border: "1px solid hsl(var(--border))",
+          borderRadius: "var(--radius)",
+          color: "hsl(var(--popover-foreground))",
+        }}
+        labelStyle={{ color: "hsl(var(--popover-foreground))" }}
+        itemStyle={{ color: "hsl(var(--popover-foreground))" }}
+        wrapperStyle={{ outline: "none" }}
+      />
+
+      {/* Keep Legend for category names */}
+      <Legend verticalAlign="bottom" height={60} />
+    </PieChart>
+  </ResponsiveContainer>
+</div>
+    )}
+  </CardContent>
+</Card>
     </div>
   );
 }
