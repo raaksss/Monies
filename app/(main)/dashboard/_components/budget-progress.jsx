@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import useFetch from "@/hooks/use-fetch";
 import { toast } from "sonner";
-import dynamic from 'next/dynamic';
+import dynamic from "next/dynamic";
 
 import {
   Card,
@@ -13,71 +13,89 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { updateBudget } from "@/actions/budget";
 
-// Dynamically import the Progress component with no SSR
+import { updateBudget, getCurrentBudget } from "@/actions/budget";
+
+// Dynamically import Progress (no SSR)
 const DynamicProgress = dynamic(
-  () => import('@/components/ui/progress').then(mod => mod.Progress),
+  () => import("@/components/ui/progress").then((mod) => mod.Progress),
   { ssr: false }
 );
 
-export function BudgetProgress({ initialBudget, currentExpenses }) {
+export function BudgetProgress({ accountId }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [newBudget, setNewBudget] = useState(
-    initialBudget?.amount?.toString() || ""
-  );
+  const [newBudget, setNewBudget] = useState("");
   const [mounted, setMounted] = useState(false);
 
+  // fetch budget + expenses
   const {
-    loading: isLoading,
+    loading: isBudgetLoading,
+    fn: fetchBudget,
+    data: budgetData,
+    error: budgetError,
+  } = useFetch(getCurrentBudget);
+
+  // update budget
+  const {
+    loading: isUpdating,
     fn: updateBudgetFn,
     data: updatedBudget,
-    error,
+    error: updateError,
   } = useFetch(updateBudget);
-
-  const percentUsed = initialBudget
-    ? (currentExpenses / initialBudget.amount) * 100
-    : 0;
-
-  const handleUpdateBudget = async () => {
-    const amount = parseFloat(newBudget);
-
-    if (isNaN(amount) || amount <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
-
-    await updateBudgetFn(amount);
-  };
-
-  const handleCancel = () => {
-    setNewBudget(initialBudget?.amount?.toString() || "");
-    setIsEditing(false);
-  };
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    fetchBudget(accountId);
+  }, [accountId]);
+
+  useEffect(() => {
+    if (budgetData?.budget) {
+      setNewBudget(budgetData.budget.amount.toString());
+    }
+  }, [budgetData]);
 
   useEffect(() => {
     if (updatedBudget?.success) {
       setIsEditing(false);
       toast.success("Budget updated successfully");
+      fetchBudget(accountId); // refresh after update
     }
   }, [updatedBudget]);
 
   useEffect(() => {
-    if (error) {
-      toast.error(error.message || "Failed to update budget");
+    if (budgetError) {
+      toast.error(budgetError.message || "Failed to load budget");
     }
-  }, [error]);
+  }, [budgetError]);
 
-  if (!mounted) {
-    return null;
-  }
+  useEffect(() => {
+    if (updateError) {
+      toast.error(updateError.message || "Failed to update budget");
+    }
+  }, [updateError]);
+
+  if (!mounted) return null;
+
+  const budget = budgetData?.budget;
+  const expenses = budgetData?.currentExpenses || 0;
+
+  const percentUsed = budget ? (expenses / budget.amount) * 100 : 0;
+
+  const handleUpdateBudget = async () => {
+    const amount = parseFloat(newBudget);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+    await updateBudgetFn(amount);
+  };
+
+  const handleCancel = () => {
+    setNewBudget(budget?.amount?.toString() || "");
+    setIsEditing(false);
+  };
 
   return (
     <Card>
@@ -96,13 +114,13 @@ export function BudgetProgress({ initialBudget, currentExpenses }) {
                   className="w-32"
                   placeholder="Enter amount"
                   autoFocus
-                  disabled={isLoading}
+                  disabled={isUpdating}
                 />
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={handleUpdateBudget}
-                  disabled={isLoading}
+                  disabled={isUpdating}
                 >
                   <Check className="h-4 w-4 text-green-500" />
                 </Button>
@@ -110,7 +128,7 @@ export function BudgetProgress({ initialBudget, currentExpenses }) {
                   variant="ghost"
                   size="icon"
                   onClick={handleCancel}
-                  disabled={isLoading}
+                  disabled={isUpdating}
                 >
                   <X className="h-4 w-4 text-red-500" />
                 </Button>
@@ -118,10 +136,10 @@ export function BudgetProgress({ initialBudget, currentExpenses }) {
             ) : (
               <>
                 <CardDescription>
-                  {initialBudget
-                    ? `₹${currentExpenses.toFixed(
+                  {budget
+                    ? `₹${expenses.toFixed(2)} of ₹${budget.amount.toFixed(
                         2
-                      )} of ₹${initialBudget.amount.toFixed(2)} spent`
+                      )} spent`
                     : "No budget set"}
                 </CardDescription>
                 <Button
@@ -138,7 +156,7 @@ export function BudgetProgress({ initialBudget, currentExpenses }) {
         </div>
       </CardHeader>
       <CardContent>
-        {initialBudget && (
+        {budget && (
           <div className="space-y-2">
             <DynamicProgress
               value={percentUsed}
@@ -146,8 +164,8 @@ export function BudgetProgress({ initialBudget, currentExpenses }) {
                 percentUsed >= 90
                   ? "bg-red-500"
                   : percentUsed >= 75
-                    ? "bg-yellow-500"
-                    : "bg-green-500"
+                  ? "bg-yellow-500"
+                  : "bg-green-500"
               }`}
             />
             <p className="text-xs text-muted-foreground text-right">
