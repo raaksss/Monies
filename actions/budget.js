@@ -27,10 +27,16 @@ export async function getCurrentBudget(accountId) {
 
     // Get current month's expenses
     const currentDate = new Date();
-    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1, 0, 0, 0, 0);
-
-// Start of next month (exclusive) → safer than "endOfMonth"
-const startOfNextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1, 0, 0, 0, 0);
+    const startOfMonth = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      1
+    );
+    const endOfMonth = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() + 1,
+      0
+    );
 
     const expenses = await db.transaction.aggregate({
       where: {
@@ -38,7 +44,7 @@ const startOfNextMonth = new Date(currentDate.getFullYear(), currentDate.getMont
         type: "EXPENSE",
         date: {
           gte: startOfMonth,
-          lt: startOfNextMonth ,
+          lt: endOfMonth,
         },
         accountId,
       },
