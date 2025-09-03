@@ -3,8 +3,10 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
+import { unstable_noStore as noStore } from "next/cache";
 
 export async function getCurrentBudget(accountId) {
+  noStore();
   try {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
