@@ -90,9 +90,12 @@ Monies is a comprehensive financial management platform designed to help you tak
    GEMINI_API_KEY=your_gemini_api_key (optional, for AI features)
    RESEND_API_KEY=your_resend_api_key
    ARCJET_KEY=your_arcjet_api_key
+   INNGEST_SIGNING_KEY=your_inngest_signing_key
+   INNGEST_EVENT_KEY=your_inngest_event_key
    
    NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
    NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+   
    ```
 
 4. Run database migrations:
