@@ -24,18 +24,16 @@ const DynamicProgress = dynamic(
   { ssr: false }
 );
 
-export function BudgetProgress({ accountId }) {
+export function BudgetProgress({ 
+  accountId, 
+  initialBudget, 
+  currentExpenses: serverCurrentExpenses,
+  transactions = [],
+  accounts = []
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [newBudget, setNewBudget] = useState("");
   const [mounted, setMounted] = useState(false);
-
-  // fetch budget + expenses
-  const {
-    loading: isBudgetLoading,
-    fn: fetchBudget,
-    data: budgetData,
-    error: budgetError,
-  } = useFetch(getCurrentBudget);
 
   // update budget
   const {
@@ -47,28 +45,53 @@ export function BudgetProgress({ accountId }) {
 
   useEffect(() => {
     setMounted(true);
-    fetchBudget(accountId);
-  }, [accountId]);
-
-  useEffect(() => {
-    if (budgetData?.budget) {
-      setNewBudget(budgetData.budget.amount.toString());
+    if (initialBudget) {
+      setNewBudget(initialBudget.amount.toString());
     }
-  }, [budgetData]);
+  }, [initialBudget]);
+
+  // Calculate current expenses using the same logic as expense breakdown
+  const calculateCurrentExpenses = () => {
+    if (!transactions.length || !accounts.length) return 0;
+    
+    const defaultAccount = accounts.find((a) => a.isDefault) || accounts[0];
+    if (!defaultAccount) return 0;
+
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+
+    // Filter transactions for the default account
+    const accountTransactions = transactions.filter(
+      (t) => t.accountId === defaultAccount.id
+    );
+
+    // Filter expenses for current month using same logic as expense breakdown
+    const currentMonthExpenses = accountTransactions.filter((t) => {
+      const transactionDate = new Date(t.date);
+      return (
+        t.type === "EXPENSE" &&
+        transactionDate.getMonth() + 1 === currentMonth &&
+        transactionDate.getFullYear() === currentYear
+      );
+    });
+
+    // Calculate total expenses
+    return currentMonthExpenses.reduce((sum, transaction) => {
+      return sum + transaction.amount;
+    }, 0);
+  };
+
+  const currentExpenses = calculateCurrentExpenses();
 
   useEffect(() => {
     if (updatedBudget?.success) {
       setIsEditing(false);
       toast.success("Budget updated successfully");
-      fetchBudget(accountId); // refresh after update
+      // Refresh the page to get updated data
+      window.location.reload();
     }
   }, [updatedBudget]);
-
-  useEffect(() => {
-    if (budgetError) {
-      toast.error(budgetError.message || "Failed to load budget");
-    }
-  }, [budgetError]);
 
   useEffect(() => {
     if (updateError) {
@@ -78,8 +101,8 @@ export function BudgetProgress({ accountId }) {
 
   if (!mounted) return null;
 
-  const budget = budgetData?.budget;
-  const expenses = budgetData?.currentExpenses || 0;
+  const budget = initialBudget;
+  const expenses = currentExpenses;
 
   const percentUsed = budget ? (expenses / budget.amount) * 100 : 0;
 

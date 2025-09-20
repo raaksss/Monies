@@ -27,8 +27,11 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       {/* Budget Progress */}
       <BudgetProgress
+        accountId={defaultAccount?.id}
         initialBudget={budgetData?.budget}
         currentExpenses={budgetData?.currentExpenses || 0}
+        transactions={transactions || []}
+        accounts={accounts || []}
       />
 
       {/* Dashboard Overview */}
