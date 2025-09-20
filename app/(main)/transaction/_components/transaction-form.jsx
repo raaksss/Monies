@@ -228,6 +228,9 @@ export function AddTransactionForm({
   const date = watch("date");
 
   const defaultAccountId = accounts.find((ac) => ac.isDefault)?.id || accounts[0]?.id || "";
+  
+  // Filter categories based on transaction type
+  const filteredCategories = defaultCategories.filter(category => category.type === (type || "EXPENSE"));
   return (
     <div className="w-full max-w-3xl mx-auto px-4 sm:px-6">
       {isImporting ? (
@@ -270,8 +273,11 @@ export function AddTransactionForm({
                             value={watch(`transactions.${index}.type`) || ""}
                             onValueChange={(value) => {
                               setValue(`transactions.${index}.type`, value);
+                              // Reset category when type changes
+                              setValue(`transactions.${index}.category`, "");
                               const updatedTransactions = [...importedTransactions];
                               updatedTransactions[index].type = value;
+                              updatedTransactions[index].category = "";
                               setImportedTransactions(updatedTransactions);
                             }}
                           >
@@ -314,7 +320,9 @@ export function AddTransactionForm({
                               <SelectValue placeholder="Category" />
                             </SelectTrigger>
                             <SelectContent>
-                              {defaultCategories.map((category) => (
+                              {defaultCategories
+                                .filter(category => category.type === (watch(`transactions.${index}.type`) || "EXPENSE"))
+                                .map((category) => (
                                 <SelectItem key={category.id} value={category.id}>
                                   {category.name}
                                 </SelectItem>
@@ -424,7 +432,11 @@ export function AddTransactionForm({
             {/* Type */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Type</label>
-              <Select onValueChange={(value) => setValue("type", value)} value={type}>
+              <Select onValueChange={(value) => {
+                setValue("type", value);
+                // Reset category when type changes
+                setValue("category", "");
+              }} value={type}>
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
@@ -475,7 +487,7 @@ export function AddTransactionForm({
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {defaultCategories.map((category) => (
+                  {filteredCategories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
                     </SelectItem>
