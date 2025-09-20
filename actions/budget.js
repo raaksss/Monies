@@ -25,39 +25,39 @@ export async function getCurrentBudget(accountId) {
       },
     });
 
-    // Get current month's expenses
+    // Get current month's expenses - match the same logic as expense breakdown
+    // The expense breakdown uses: transactionDate.getMonth() + 1 === selectedMonth && transactionDate.getFullYear() === new Date().getFullYear()
     const currentDate = new Date();
-    const startOfMonth = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth(),
-      1
-    );
-    const endOfMonth = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth() + 1,
-      0
-    );
-
-    const expenses = await db.transaction.aggregate({
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-based, but we want 1-based
+    
+    // Get all transactions for the user and account, then filter on the client side
+    // This matches exactly how the expense breakdown works
+    const allTransactions = await db.transaction.findMany({
       where: {
         userId: user.id,
         type: "EXPENSE",
-        date: {
-          gte: startOfMonth,
-          lt: endOfMonth,
-        },
         accountId,
-      },
-      _sum: {
-        amount: true,
       },
     });
 
+    // Filter transactions using the same logic as expense breakdown
+    const currentMonthExpenses = allTransactions.filter((transaction) => {
+      const transactionDate = new Date(transaction.date);
+      return (
+        transactionDate.getMonth() + 1 === currentMonth &&
+        transactionDate.getFullYear() === currentYear
+      );
+    });
+
+    // Calculate total expenses
+    const totalExpenses = currentMonthExpenses.reduce((sum, transaction) => {
+      return sum + transaction.amount.toNumber();
+    }, 0);
+
     return {
       budget: budget ? { ...budget, amount: budget.amount.toNumber() } : null,
-      currentExpenses: expenses._sum.amount
-        ? expenses._sum.amount.toNumber()
-        : 0,
+      currentExpenses: totalExpenses,
     };
   } catch (error) {
     console.error("Error fetching budget:", error);
