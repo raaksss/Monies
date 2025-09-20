@@ -103,61 +103,6 @@ export function DashboardOverview({ accounts, transactions }) {
     })
   );
 
-  const [hiddenCategories, setHiddenCategories] = useState([]);
-
-  const handleLegendClick = (category) => {
-    setHiddenCategories((prev) =>
-      prev.includes(category)
-        ? prev.filter((c) => c !== category) // bring back
-        : [...prev, category] // hide
-    );
-  };
-
-  // Only pass visible categories to Pie
-  const visiblePieData = pieChartData.filter(
-    (entry) => !hiddenCategories.includes(entry.name)
-  );
-
-  const renderLegend = () => {
-    const items = pieChartData.map((entry, index) => ({
-      name: entry.name,
-      color: COLORS[index % COLORS.length],
-    }));
-
-    return (
-      <ul className="flex flex-wrap justify-center gap-3 m-0 p-0 list-none">
-        {items.map((it) => {
-          const isHidden = hiddenCategories.includes(it.name);
-          return (
-            <li
-              key={it.name}
-              onClick={() => handleLegendClick(it.name)}
-              style={{
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                opacity: isHidden ? 0.5 : 1,
-              }}
-            >
-              <span
-                style={{
-                  display: "inline-block",
-                  width: 10,
-                  height: 10,
-                  background: isHidden
-                    ? "hsl(var(--muted-foreground))"
-                    : it.color,
-                }}
-              />
-              <span>{it.name}</span>
-            </li>
-          );
-        })}
-      </ul>
-    );
-  };
-
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {/* Recent Transactions Card */}
@@ -226,6 +171,8 @@ export function DashboardOverview({ accounts, transactions }) {
         </CardContent>
       </Card>
 
+      {/* Expense Breakdown Card */}
+      {/* Expense Breakdown Card */}
 <Card>
   <CardHeader className="space-y-4">
     <div className="flex items-center justify-between">
@@ -333,42 +280,39 @@ export function DashboardOverview({ accounts, transactions }) {
       <div className="h-[350px] md:h-[400px] w-full px-2">
   <ResponsiveContainer width="100%" height="100%">
     <PieChart>
- 
-    <Pie
-  data={visiblePieData}
-  cx="50%"
-  cy="50%"
-  outerRadius="70%"
-  dataKey="value"
-  labelLine={false}
->
-  {visiblePieData.map((entry, index) => {
-    return (
-      <Cell
-        key={`cell-${index}`}
-        fill={COLORS[index % COLORS.length]}
+      <Pie
+        data={pieChartData}
+        cx="50%"
+        cy="50%"
+        outerRadius="70%"
+        fill="#8884d8"
+        dataKey="value"
+        labelLine={false}
+      >
+        {pieChartData.map((entry, index) => (
+          <Cell
+            key={`cell-${index}`}
+            fill={COLORS[index % COLORS.length]}
+          />
+        ))}
+      </Pie>
+
+      <Tooltip
+        formatter={(value) => `₹${value.toFixed(2)}`}
+        contentStyle={{
+          backgroundColor: "hsl(var(--popover))",
+          border: "1px solid hsl(var(--border))",
+          borderRadius: "var(--radius)",
+          color: "hsl(var(--popover-foreground))",
+        }}
+        labelStyle={{ color: "hsl(var(--popover-foreground))" }}
+        itemStyle={{ color: "hsl(var(--popover-foreground))" }}
+        wrapperStyle={{ outline: "none" }}
       />
-    );
-  })}
-</Pie>
 
-
-  <Tooltip
-    formatter={(value) => `₹${value.toFixed(2)}`}
-    contentStyle={{
-      backgroundColor: "hsl(var(--popover))",
-      border: "1px solid hsl(var(--border))",
-      borderRadius: "var(--radius)",
-      color: "hsl(var(--popover-foreground))",
-    }}
-    labelStyle={{ color: "hsl(var(--popover-foreground))" }}
-    itemStyle={{ color: "hsl(var(--popover-foreground))" }}
-    wrapperStyle={{ outline: "none" }}
-  />
-
-<Legend verticalAlign="bottom" height={60} content={renderLegend} />
-
-</PieChart>
+      {/* Keep Legend for category names */}
+      <Legend verticalAlign="bottom" height={60} />
+    </PieChart>
   </ResponsiveContainer>
 </div>
     )}
